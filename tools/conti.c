@@ -30,6 +30,13 @@ struct ct_ed CT_ED;
                                            draws by the rules library, ct_sdraw: clash-free whenever a draw exists) */
 struct ct_seg CT_SEG;
 #ifdef NATIVE
+u8 CT_W = 0xFF;                         /* the ACTIVE world (4.2 ctworld: the career's world byte, the glue writes it at
+                                           every season end - conti.py ct_ctry / ct_fill; 0xFF: the spec's own world,
+                                           the native tests' default) */
+#else
+u8 CT_W;
+#endif
+#ifdef NATIVE
 const u8 *CT_S1;
 const u8 *CT_S1R0, *CT_S1H0, *CT_RK;
 u8 CT_NOR;                              /* (conti.season1_old: the build's run of a 4.1 edition, ED_R off) */
@@ -69,11 +76,17 @@ static const u8 *hol;                   /* holders: src cup (0xFF: the UEFA Cham
                                            dst round | 0x80 own place | 0x40 even / 0x20 odd editions only, its slot */
 static u16 g_uefa;                      /* the UEFA Champions League holder's team word (ct_go) */
 static u8 nhol;
-static const u8 *afile;                 /* each association's league team file */
+static const u8 *afile;                 /* each association's league team file: a u16, 0xFFFF = no league in this
+                                           build's world (a guest association, one with no pack) - a team file is
+                                           0..255 and every value is a real one (TEAM.000: the 1996-97 Albania), so
+                                           'none' cannot be a byte. Read through AFILE only */
+#define AFILE(a) (afile[2 * (a)] | afile[2 * (a) + 1] << 8)   /* (0xFFFF: none) */
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
 static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
 static u16 ngu;
 static const u8 *areg, *s1h, *wfile, *gid, *s1e;
+static u8 sw;                           /* the world the spec's files are of (its tail byte; 0xFF: none - a test spec) */
+static u8 con[NCUP];                    /* ct_wcups: the cup plays the edition being made */
 static u16 GI[256];                     /* a guest's club index this season */
 static u16 nrk;
 #define RND(c, r) (cupr[c] + (r) * RB)
@@ -94,7 +107,7 @@ static void parse(void) {
     hol = p + 1;
     p += 1 + 4 * nhol;
     afile = p;
-    p += na;
+    p += 2 * na;
     nrk = p[0] | p[1] << 8;
     rk = p + 2;
     p += 2 + 4 * nrk;
@@ -109,11 +122,55 @@ static void parse(void) {
     s1h = p;                            /* each cup's 2027 edition winner (the build's run): the first holders */
     p += 8 * ncup;
     gid = p;                            /* each cup's group contest id in the exe (0: none) */
+    sw = gid[ncup + 3];                 /* (after CONTI_GPLACE's byte and CONTI_FORCE2's two: the spec's world) */
     s1e = CT_S1 && CT_S1[0] == 'S' && CT_S1[1] == '1' ? CT_S1 : 0;   /* 4.0.6 B2: the season-1 edition (the build's,
                                            obj3: conti.s1_patch), else none */
     if (CT_ED.mark == 0x4543 && !(CT_ED.pad & ED_R) && CT_S1R0 && CT_S1R0[0] == 'S' && CT_S1R0[1] == '1') {
         s1e = CT_S1R0;                  /* (4.1.1: an edition from before ED_R - the 4.1 build's block and winners) */
         if (CT_S1H0) s1h = CT_S1H0;
+    }
+}
+
+/* --- the world (4.2 ctworld) ------------------------------------------------------------------------------------------
+   ct_wassoc: THE one answer to "which associations does the active world have": association a's league team file in
+   the active world (CT_W), -1 = the world has no such association. Team files are a per-world namespace (file 109:
+   Turkey in 2026-27, Belgium in 1984-85) and the spec carries one world's map (afile, wfile: 2026-27's, world sw):
+   in any other world no association is present. Everything that turns a team file into an association at a season
+   end (ct_country, ct_go) or asks whether a cup has clubs (ct_wcups) goes through here. LATER (after 4.2, Davide
+   16/11: the cups in every world with that world's clubs): the spec gets a map per world and only this function
+   changes - it reads the active world's. -1 = none: never 0, a real file; callers compare the result with a
+   file (`ct_wassoc(a) == (word & 0xFF)`) or test `>= 0`, never its truth. */
+static int ct_wassoc(int a) {
+    int f = a < na ? AFILE(a) : 0xFFFF;
+    if (f > 0xFF) return -1;
+    if (sw != 0xFF) {
+        if (CT_W != 0xFF && CT_W != sw) return -1;
+        if (!(wfile[f >> 3] & 1 << (f & 7))) return -1;
+    }
+    return f;
+}
+/* con[]: the cups that play the edition being made. A cup with league places plays when the world has at least one
+   of their associations (guest clubs alone never make an edition: they stand next to a world's own leagues); a cup
+   with no league place plays its fixed clubs (a season-1 spec: data's own entrants), else when a cup that feeds it
+   through the holders table plays (the Recopa, the CAF Super Cup, the Intercontinental - the UEFA holder alone is
+   no edition). A confederation is its cups' access lists: none is named here, the rule is every confederation's. */
+static void ct_wcups(void) {
+    u8 lg[NCUP];
+    for (int c = 0; c < NCUP; c++) con[c] = lg[c] = 0;
+    for (int i = 0; i < nacc; i++) {
+        const u8 *e = acc + 4 * i;
+        if (e[1] >= NCUP) continue;
+        if (e[0] == 0xFE) { if (!lg[e[1]]) lg[e[1]] = 2; continue; }
+        lg[e[1]] = 1;
+        if (ct_wassoc(e[0]) >= 0) con[e[1]] = 1;
+    }
+    for (int c = 0; c < ncup; c++) if (lg[c] == 2) con[c] = 1;
+    for (int again = 1; again; ) {
+        again = 0;
+        for (int h = 0; h < nhol; h++) {
+            const u8 *e = hol + 4 * h;
+            if (e[0] < NCUP && e[1] < NCUP && !lg[e[1]] && !con[e[1]] && con[e[0]]) con[e[1]] = again = 1;
+        }
     }
 }
 
@@ -268,6 +325,7 @@ static void access(void) {
     for (int h = 0; h < nhol; h++) {    /* the holders first: their own places */
         const u8 *e = hol + 4 * h;
         int s = e[0], odd = (2028 + CT_ST.season) & 1;   /* (the edition's year: built at the season end) */
+        if (!con[e[1]]) continue;       /* (4.2 ctworld: a cup the world does not play has no place to give) */
         if ((e[2] & 0x40) && odd) continue;
         if ((e[2] & 0x20) && !odd) continue;
         u16 hid = s == 0xFF ? g_uefa : CT_ST.hold[s].id;
@@ -299,6 +357,7 @@ static void access(void) {
     for (int i = 0; i < nacc; i++) {
         const u8 *e = acc + 4 * i;
         int a = e[0], c = e[1], r = e[2], k = e[3], club = 0;
+        if (!con[c]) continue;          /* (4.2 ctworld) */
         if (a == 0xFE) {                /* a guest's place (its real access, data's list): k = the guest */
             club = k < ngu ? GI[k] : 0;
             if (!club) continue;
@@ -510,7 +569,7 @@ static int clash(int ng, int gs, int rule) {   /* two clubs of a group that may 
     return 0;
 }
 #endif
-static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED_S: CONVENTIONS 14a) */
+static int draw_groups(int c, int r, const u8 *R) {   /* 0, -1: not drawn (ED_S: CONVENTIONS 14a), 1: no stage */
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
     int m = 0;
@@ -557,6 +616,12 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
         reached(b, c, r);
         x[m] = b; v[m] = 0; k[m] = 0; m++;
     }
+    if (m < ng && CT_ED.pad & ED_S) return 1;
+                                        /* (4.2 ctworld: fewer clubs than groups even after the fill - no group stage
+                                           to draw: the round is not played, and that is no refused draw; a field
+                                           of a stage's size that the rule cannot place is still refused, 14a. An
+                                           older edition - no ED_S, the 411 draw, which never refuses - replays as
+                                           it was made) */
     if (R[19] && areg) {                /* a league stage by region: each club in its association's region */
         sort_by_pts(x, v, k, m);
         int fill[16] = {0};
@@ -716,11 +781,13 @@ static int ct_round(int c, int r) {
     }
     if (fix) ;
     else if (R[0] == K_GROUPS) {
-        if (draw_groups(c, r, R) < 0) {  /* (4.2 P7, not drawn - a bug the build's bound rules out: the edition stops
+        int dg = draw_groups(c, r, R);
+        if (dg) {                       /* (4.2 P7, not drawn - a bug the build's bound rules out: the edition stops
                                            here, no club goes on, no winner (the holder stays: ct_finish), the game's
                                            contest gets no list; ctview shows the round as not drawn - CT_SDRAW_ERR) */
             CT_OUT.nent[c][r] = 0;
-            CT_OUT.res[c][r][0] = ND_MARK;  /* (no entrants: the view's "draw not made") */
+            if (dg < 0) CT_OUT.res[c][r][0] = ND_MARK;  /* (no entrants: the view's "draw not made"; dg 1 - 4.2
+                                           ctworld: no stage, an empty round and nothing else) */
             return 0;
         }
         n = R[6] * R[7];
@@ -870,7 +937,9 @@ void ct_country(const u8 *stand, const u8 *cuprec) {
     u16 champ = stand[0] | stand[1] << 8;
     if (!champ || champ == 0xFFFF) return;
     int a = -1;
-    for (int i = 0; i < na; i++) if (afile[i] == (champ & 0xFF)) a = i;
+    for (int i = 0; i < na; i++) if (ct_wassoc(i) == (champ & 0xFF)) a = i;
+                                        /* (4.2 ctworld: the ACTIVE world's associations - before, the 2026-27 files
+                                           in any world, and file 0, the 1996-97 Albania, as the guests' old 0) */
     if (a < 0) return;
     u32 last = 0;
     int n = ntab, ci = -1;
@@ -908,7 +977,7 @@ void ct_go(u32 manager, u32 seed, u32 uefa) {
                                                                career club below them: as its association's weakest) */
         parse();
         for (int a = 0; a < na; a++)
-            if (afile[a] == (manager & 0xFF)) {
+            if (ct_wassoc(a) == (int)(manager & 0xFF)) {
                 u32 s = 0;
                 int k = 0;
                 while (k < NL && CT_IN.league[a][k]) k++;
@@ -952,7 +1021,9 @@ static void ed_add(int x, int cr, int side) {
     CT_ED.ne++;
 }
 static int assoc_of(u16 id) {           /* a team word's association: its file's, else a guest's, else none (0xFD) */
-    for (int a = 0; a < na; a++) if (afile[a] && afile[a] == (id & 0xFF)) return a;
+                                        /* (run(): a SAVED edition's clubs - it replays as it was made, in the
+                                           spec's files; the world gate, ct_wassoc, acts when an edition is made) */
+    for (int a = 0; a < na; a++) if (AFILE(a) == (id & 0xFF)) return a;
     for (int g = 0; g < ngu; g++) if ((gu[8 * g] | gu[8 * g + 1] << 8) == id) return gu[8 * g + 2];
     return 0xFD;
 }
@@ -970,7 +1041,7 @@ static void snapshot(void) {            /* the edition's entrants (after access)
         seen[CT_IN.manager] = 1; ed_add(CT_IN.manager, 0xFF, 0);
     }
     for (int c = 0; c < ncup; c++)      /* up to 4 reserves per cup: its associations' best clubs in no cup */
-        for (int k = 0; k < 4; k++) {
+        for (int k = 0; con[c] && k < 4; k++) {
             int b = 0;
             for (int i = 1; i <= CT_IN.nclub; i++)
                 if (!taken[i] && !seen[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
@@ -1086,6 +1157,10 @@ void ct_season(void) {                  /* the season end (after ct_finish and t
     rng = CT_IN.seed ? CT_IN.seed : 1;
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
     for (int c = 0; c < ncup; c++) if (CT_LP[c]) lp_clear(c);
+    ct_wcups();                         /* (4.2 ctworld: the cups this world plays; the others get no entrant, no
+                                           reserve, no list - and keep no holder: the build's 2027 winner is no club
+                                           of this world) */
+    for (int c = 0; c < ncup; c++) if (!con[c]) CT_ST.hold[c].id = 0;
     access();
     snapshot();
     CT_ST.mark = 0x5443; CT_ST.season++;

@@ -521,7 +521,12 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
     spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)     # (src, dst, round | flags, slot)
-    spec += bytes(0 if a.startswith('g:') else (files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs))
+    # 4.2 ctworld: each association's league team file as a u16, 0xFFFF = no league in this build's world (a guest
+    # association, one with no pack; before, a byte: 0 for guests - but TEAM.000 is a real file - and the tests'
+    # 100 + index for a missing pack, a phantom that could be a European league's). conti.c AFILE / ct_wassoc
+    af = [0xFFFF if a.startswith('g:') else (files.get(a, 0xFFFF) if files else 100 + i) for i, a in enumerate(assocs)]
+    assert all(f == 0xFFFF or 0 <= f <= 255 for f in af), ('conti: a team file is 0..255', af)
+    spec += struct.pack(f'<{len(af)}H', *af)
     rank = {}
     for conf in confs:
         rank.update(ranking(_read(conf, 'access'), words))
@@ -580,6 +585,10 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
             f2 = (fc, rkey[fc][fr])
             print(f'exe: CONTI_FORCE2={fk}:{fr} (test build)')
     spec += bytes(f2)
+    sw = gmod.world() if files else None                # 4.2 ctworld: the world these files are of (the 2026-27 packs'
+    spec += bytes((0xFF if sw is None else sw,))        # world number, the save's world byte; 0xFF: no files - the
+                                                        # tests' synthetic spec, every association present): conti.c
+                                                        # ct_wassoc gates every other world on it
     if s1 is None and words is not None:            # (4.2 P7, CONVENTIONS 14a: no switch turns it off)
         BOUND_IN[0] = (body, list(access), holders, gl, assocs, assoc_clubs(words, assocs))
         bad = draw_bound(*BOUND_IN[0])
@@ -1052,6 +1061,8 @@ ct_ctry:                                ; replaces `call cseg_93974` (a country'
     pop es
     cld
     mov dword [CT_SPEC], SPEC
+    mov al, [CT_SLTW]                   ; (4.2 ctworld: the career's world byte -> conti.c CT_W, ct_wassoc's world)
+    mov [CT_W], al
     cmp byte [ct_on], 0
     jne .on
     mov byte [ct_on], 1
@@ -1075,6 +1086,8 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
     pop es
     cld
     call ct_lp
+    mov al, [CT_SLTW]                   ; (4.2 ctworld, as ct_ctry)
+    mov [CT_W], al
     movzx eax, word [SEL]
     movzx ecx, word [HOLD_CC]           ; (the UEFA Champions League holder: the Intercontinental's final)
     push ecx
@@ -1734,7 +1747,9 @@ def patch(p, at, limit, bss_at, area):
     symbols = {'DIY': (2, lib97._sites(p)[3] + 0x41F), 'STAND': q['STAND'], 'CUPREC': q['CUPREC'],
                'SEL': (2, sacups.SEL_ADDR[0]), 'HOLD_CC': q['HOLD_CC'], 'SPEC': (1, (end + 15) & ~15), 'C927A2': (1, t927[0]),
                'C93974': (1, t939[0]), 'CT_SPEC': syms['CT_SPEC'], 'CT_TABLE': syms['ct_table'],
-               'CT_BEGIN': syms['ct_begin'], 'CT_COUNTRY': syms['ct_country'], 'CT_GO': syms['ct_go']}
+               'CT_BEGIN': syms['ct_begin'], 'CT_COUNTRY': syms['ct_country'], 'CT_GO': syms['ct_go'],
+               'CT_W': syms['CT_W'],                    # (4.2 ctworld: the active world, the save's world byte)
+               'CT_SLTW': (cw.LABELS['sites']['slt'][0], cw.LABELS['sites']['slt'][1] + cw.WORLD_BYTE)}
     lp = []
     for ci, off, lst, n in STRUCTS:                     # the contests' lists (conti.c writes the main rounds there)
         symbols[f'LIST{ci}'] = (1, lst)

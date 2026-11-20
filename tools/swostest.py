@@ -25940,7 +25940,7 @@ def conti_holder(tag, env, team, words):
     return not errs, '; '.join(errs + [f'season 2: {seen}'])
 
 
-def conti_komain(tag, env, team, cup, after, then=None):
+def conti_komain(tag, env, team, cup, after, then=None, strict=False):
     """4.2 (Convergence 15/11, MC): a knockout main round's game contest (the ACL Elite / the Champions Cup: gid 0
     before, ct_gamein refused its results - since 4.1 conti.c never learned the career club's ties and simulated them
     at the season end). Season 1, then season 2 from its save, saved again after the match screen `after` (the
@@ -25995,8 +25995,16 @@ def conti_komain(tag, env, team, cup, after, then=None):
         out = [x.strip() for ln in res[-1:] for x in ln.split('|') if re.search(r'\d+-\d+|VINCE', x)]
         name = team.split(',')[-1]
         won = 1 if any('VINCE' in x and name in x for x in out) else 0 if any('VINCE' in x for x in out) else None
-        check(mine, f'{cup}: the final not in the edition (CT_ED.f {f}): never reached conti.c', errs)
-        check(won is None or (mine and mine[-1][1] == won), f'{cup}: the edition {mine} != the game\'s {out}', errs)
+        check(mine, f'{cup}: the tie not in the edition (CT_ED.f {f}): never reached conti.c', errs)
+
+        def agrees(w):                          # (the edition's last entry for the cup = the game's outcome w)
+            return bool(mine) and mine[-1][1] == w
+        if strict:                              # (komain_ccc, MC 20/11: no vacuous pass - the result screen must be
+            check(won is not None, f'{cup}: the game\'s result screen not read ({out})', errs)   # read)
+        check(won is None or agrees(won), f'{cup}: the edition {mine} != the game\'s {out}', errs)
+        if strict and won is not None and agrees(won):   # (R4 self-twin, no extra run: the same compare against the
+            check(not agrees(1 - won), f'{cup}: compare is vacuous (the edition {mine} agrees with the flipped '
+                  f'outcome {1 - won} too)', errs)       # flipped outcome must disagree)
         return not errs, '; '.join(errs) or f'{cup}: CT_ED.f {f}, the cup\'s {mine}, the game\'s {out}'
     check(mine and mine[0][1] == 1, f'{cup}: the club\'s results not in the edition (CT_ED.f {f}): its game '
           f'contest\'s round of 16 never reached conti.c', errs)
@@ -26014,9 +26022,13 @@ def world_conti_komain_acle():
 @scenario
 def world_conti_komain_ccc():
     """conti_komain: AMERICA forced into the CONCACAF Champions Cup's round of 16 (and the Derby of the Americas,
-    won): saved after its quarter-final's second leg, the edition holds its round of 16 won"""
+    won): saved at its next league match after the round of 16's second leg, the edition holds that tie's result as
+    the game played it, won or lost (20/11: the tie is the human's own, no switch forces it - its draw and result
+    follow season 1, so the old 'saved after the quarter-final' premise failed whenever AMERICA lost it: ATLAS 1-0 on
+    the b9d8027 / ctwr-b path, a season with no mid-save and an empty new edition)"""
     return conti_komain('ccc', {'CONTI_FORCE': 'ic:r2b!', 'CONTI_FORCE2': 'ccc:r16', 'CONTI_KOWIN': '1'},
-                        'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 'ccc', 'CUP QUARTI DI FINALE RITORNO')
+                        'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 'ccc', 'CUP OTTAVI DI FINALE RITORNO', 'LIGA MX',
+                        strict=True)
 
 
 def _komain_ed(car, ci):

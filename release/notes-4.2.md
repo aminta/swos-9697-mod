@@ -7,6 +7,10 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 ### What's new
 
+#### Serie D complete: all 162 clubs
+- 2026-27 world: Serie D now has all its real clubs: 9 groups of 18, 162 clubs, exactly like the real 2026-27 league. In 4.1 the game could hold only 156 of them (one team file holds 256 clubs at most); 4.2 spreads Serie D over two team files, so no club is missing any more.
+- Your 4.1 career keeps working: the 6 clubs that were missing join Serie D when you load it (see "Your 4.1 career in 4.2's new Italy").
+
 #### Serie C and Serie D groups drawn again every summer
 - 2026-27 world: from the end of your first season, the Serie C groups (3 of 20 clubs) and the Serie D groups (9 of 18) are drawn again every summer, after promotions and relegations, as the leagues really do. The rule is geography: every club goes to the group whose clubs live nearest to it, every group keeps its size, and a club that is already in a fitting group stays there. Your first season keeps the real 2026-27 groups.
 - Your club can change group too (for example from Serie C group B to group C). It stays the same career: same squad, same money, same record. Only the group changes.
@@ -204,6 +208,10 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 DRAFT - not final: sections by feature in plain player language; owners add their entries.
 
 ### Novità
+
+#### Serie D completa: tutte le 162 squadre
+- Mondo 2026-27: la Serie D ora ha tutte le sue squadre vere: 9 gironi da 18, 162 squadre, esattamente come il campionato vero 2026-27. Nella 4.1 il gioco ne poteva tenere solo 156 (un file di squadre ne contiene al massimo 256); la 4.2 divide la Serie D su due file di squadre, così non manca più nessuna squadra.
+- La tua carriera 4.1 continua a funzionare: le 6 squadre che mancavano entrano in Serie D quando la carichi (vedi "La tua carriera 4.1 nella nuova Italia della 4.2").
 
 #### Gironi di Serie C e Serie D rifatti ogni estate
 - Mondo 2026-27: dalla fine della tua prima stagione, i gironi di Serie C (3 da 20 squadre) e di Serie D (9 da 18) vengono rifatti ogni estate, dopo promozioni e retrocessioni, come fanno davvero le leghe. La regola è la geografia: ogni squadra va nel girone le cui squadre abitano più vicine, ogni girone resta della sua misura e una squadra che è già in un girone adatto ci resta. La prima stagione tiene i gironi veri 2026-27.

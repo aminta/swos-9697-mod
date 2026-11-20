@@ -99,18 +99,26 @@ LR_N = 20                                           # (lrank.c: the pairs block'
 
 def ita(x, ent):
     """LR_TAB's entry ent of Italy (0 Serie A, 2 Serie C group A, 5 Serie D group A): every world league has entries
-    since the 4.2 H2 import, Italy's are the 14 in a row"""
-    tab, divs = x.lin('LR_TAB'), []
-    while x.rd(tab + 24 * len(divs), 4) != bytes(4):
-        divs.append(x.rd(tab + 24 * len(divs) + 5, 1)[0])
-    return tab + 24 * (next(i for i in range(len(divs)) if divs[i:i + 14] == list(range(14))) + ent)
+    since the 4.2 H2 import. Italy's are 14 entries in a row: one league struct, divisions 0..13 (the unshaped world),
+    or, in an S7-shaped world (the 4.2 rc data, MC 20/11), two structs - the upper's divisions 0..4 (A, B, C x 3) then
+    the lower's 0..8 (D x 9); ent 5.. is then the lower's division ent - 5"""
+    tab, rows = x.lin('LR_TAB'), []
+    while x.rd(tab + 24 * len(rows), 4) != bytes(4):
+        rows.append(struct.unpack_from('<IBB', x.rd(tab + 24 * len(rows), 6)))
+    for i in range(len(rows) - 13):
+        lg, dv = [r[0] for r in rows[i:i + 14]], [r[2] for r in rows[i:i + 14]]
+        if dv == list(range(14)) and len(set(lg)) == 1:
+            return tab + 24 * (i + ent)
+        if dv == list(range(5)) + list(range(9)) and len(set(lg[:5])) == 1 and len(set(lg[5:])) == 1 and lg[0] != lg[5]:
+            return tab + 24 * (i + ent)
+    raise AssertionError('LR_TAB: no Italy run (14 entries: one struct 0..13, or S7 0..4 + 0..8)')
 
 
 def setup(x, n, teams, career, gtype=4, serie_a=True, ent=0):
     ud = x.lin('UD')
     e = x.rd(ita(x, ent), 24)
     league, world, div = struct.unpack_from('<IBB', e)
-    assert div == ent
+    assert div == (ent if ent < 5 or league == struct.unpack_from('<I', x.rd(ita(x, 0), 4))[0] else ent - 5)
     x.wr(ud, bytes(0x2B3 + 18 * 64))
     x.wr(ud + 0x31, struct.pack('<H', n))
     x.wr(ud + 0x4F, struct.pack('<HH', 1, n))       # (one group of n: cseg_883DD's loop)

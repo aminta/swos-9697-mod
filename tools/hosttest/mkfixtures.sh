@@ -58,6 +58,23 @@ if [ -e $FX/MANIFEST.json ]; then echo "fixtures for $SHA exist: $FX"; else
     echo "FX/$d: $(md5 -q $N/SWOS/ITALIAN.EXE)  $(tail -1 $N/build-it.log)"
   done
 
+  # 1b2. test_s7redraw's pair (42-redrawc, MC 19/11: no fixed c/ dirs): HTRD1 = the release recipe on world5tm-h3s7r (the
+  #      corrected lat / lon: the redraw on), HTSF3 = the same + S7_SIZEFORCE=3 (gate 2 after the redraw)
+  W3=$M/internal/world2526/world5tm-h3s7r
+  P3="ddr-1988-89,italia-1947-48,world-cup-1934,$EU,$(grep ' file ' $W3.txt | awk -v w=$W3 '{print w"/"tolower($1)}' | paste -sd, -)"
+  for d in HTRD1 HTSF3; do
+    N=$T/$d; mkdir -p $N/SWOS/DATA
+    rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $N/SWOS/
+    cp -p orig/DATA/* $N/SWOS/DATA/
+    F=(); [ $d = HTSF3 ] && F=(S7_SIZEFORCE=3)
+    env SEASON_PACKS=$P3 $F python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $N/SWOS/ITALIAN.EXE it $N/SWOS/DATA \
+      > $N/build-it.log 2>&1 || { tail -20 $N/build-it.log; exit 1; }
+    test -s $N/SWOS/ITALIAN.syms.json
+    grep -q 'exe: S7 redraw on' $N/build-it.log || { echo "FAIL: $d built without the redraw"; exit 1; }
+    echo "$SHA, data ${W3:t}, HOSTTEST_SYMS=1 ${F[*]} (tools/hosttest/mkfixtures.sh $(date +%F))" >> $N/build-it.log
+    echo "FX/$d: $(md5 -q $N/SWOS/ITALIAN.EXE)  $(tail -1 $N/build-it.log)"
+  done
+
   # 1c. the S7 shaped fixtures (Italy = internal/s7pack-real/ita): the default of the S7 / wsites / bteam / rimoves tests
   for d in S7W-ws4c S7RI-hs S7W-p6w; do      # (S7W-p6w: test_s7swap piece 4 / test_bteam_s7, shaped with S7_WSITES_TEST=1)
     ME=; [ $d = S7W-p6w ] && ME=S7_WSITES_TEST=1
@@ -80,7 +97,7 @@ E
   mv $T $FX; trap - EXIT
 fi
 if [ -n "${MKFIX_LEGACY:-}" ]; then
-  for d in HTW HTO4 HTOMM HTPC2 HTMC HTTC1 HTn7rf HTn7rd S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
+  for d in HTW HTO4 HTOMM HTPC2 HTMC HTTC1 HTn7rf HTn7rd HTRD1 HTSF3 S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
 fi
 echo "export HOSTTEST_FIXROOT=$FX"
 

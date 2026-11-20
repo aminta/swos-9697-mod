@@ -73,12 +73,20 @@ with Fable and, where it helps, hand the work to Fable.
     then takes the fewest same-country pairs a legal field allows ('fewest', per region), nothing more. Everything else
     (Elite league stage, CAF, CONMEBOL, OFC, UEFA) refuses. CONMEBOL's rule for clubs coming from the qualifying round
     is a fixed class, not a relaxation. Sources and article numbers: internal/handoff/nota-draw-rules.md.
-14c. **S7 crossings: Serie D groups by area, an approximation** (Davide via Regia, 2026-11-13). The LND recomposes the
-    Serie D groups every year; the mod does not. A club relegated from Serie C goes into the Serie D group of its
-    clubs.csv area (else the nearest group with room), taking the place of a club promoted from that group, so every
-    group keeps its size; a promoted club takes the Serie C group by area the same way. Direct relegations first, then
-    play-out losers. Not exact: declared in the release notes (EN + IT) and in "Rebuilt exactly" as approximated.
-    Unequal counts or a bad snapshot = the season's crossings refused and logged (S7_LOG), never guessed.
+14c. **S7 groups: Serie C and Serie D drawn again every summer by one fixed rule** (MC design internal/handoff/s7-redraw.md;
+    Davide 15/11 "regola attuale al 78% e basta"; replaces the 13/11 groups by area and the S7GEO chain movers). Season 1
+    keeps the real 2026-27 groups (data). At every season end, after the crossings (relegated clubs placed first by their
+    clubs.csv area, place(), only to give the levels their sizes), s7swap.c redraws BOTH levels through s7geo.c s7rd_level:
+    anchors = last season's group centroids, travel points (island clubs from their mainland port), cost isqrt((4 dlat)^2 +
+    (3 dlon)^2) in 1/100 degree minus STAY 540 for a club's last group, the integer Hungarian on the group slots (tie order =
+    the registry ident). Serie C second teams (clubs.csv second_of): never two in a group, never in last season's group,
+    the arrangement drawn by seed = (the career club's word * 2654435761) ^ (the season * 0x9E3779B9). The C equals the oracle tools/s7redraw.py byte for
+    byte (host tests test_s7redraw_golden / _exe). No per-club exceptions. The rule's version is in the 'IT' flags bits 4..7
+    (S7RD_RULE_VER 1); a save with a newer version keeps its groups (place() only). Fallback, logged (S7RD_LOG status 2):
+    the redraw refusing, S7_REDRAW_OFF or a pack without coordinates = the crossers' place() groups by area. Validation
+    (gate 1): Serie C 92%, Serie D 78% of clubs in their real 2026-27 group (control 2024-25 -> 2025-26: D 75%), declared
+    with the honest line in the notes and README (EN + IT). Unequal counts or a bad snapshot = the season's crossings
+    refused and logged (S7_LOG), never guessed.
 14d. **A crossing of the career club is not a job change** (MC 13/11, option B): when the career club crosses between
     Serie C and Serie D, its squad (all of it, 17..30 included), its funds and the job count are kept, no reserves are
     invented and no squad is written back to a club record. Only the club's place changes: selTeamNumber,

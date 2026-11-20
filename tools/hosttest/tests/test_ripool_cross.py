@@ -59,7 +59,7 @@ def read_state(L):
     return q, maps
 
 
-S7_FLAGS = ['-DGP_S7=1', '-DS7_FA=102', '-DS7_FB=144', '-DS7_DIRS={1,2,3,4}', '-DGP_DATA_SECTION=', '-DSS_NB=1',
+S7_FLAGS = ['-DS7GEO_CHAIN=1', '-DGP_S7=1', '-DS7_FA=102', '-DS7_FB=144', '-DS7_DIRS={1,2,3,4}', '-DGP_DATA_SECTION=', '-DSS_NB=1',
             '-DGP_FORCE=0', '-DGP_SPST=0', '-DGP_SPGRP=0', '-DGP_SPPRE=0', '-DGP_SPMAGIC=0']
 NONE = 0xFFFF
 POOL_FIRST = 100                                     # (the stand-in registry's pool idents: 100, 101, 102)

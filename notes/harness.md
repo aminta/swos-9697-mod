@@ -364,6 +364,15 @@ it under `@scenario` with `@probe.red_twin(env={...}, prepare=fn, why='...')`. T
 process with run dirs `RUNS-twin`. The twin's result is cached under `internal/swostest/probe-twins/`. The cache key
 covers the scenario's source, the twin, `build_key(ROOT)` and the identity of every `*_BUILD` / `*_DATA` dir. If the
 twin PASSes, or gives no verdict, the scenario's verdict is `PROBE-ERROR`.
+`expect='REGEX'`: the twin's FAIL line must match it, else the twin is `twin-wrong` (also `PROBE-ERROR`).
+A scenario may declare several twins, one `@probe.red_twin` line per `id` (default `t1`; `probe.TWINS[name]` is the list,
+in source order). Convention: `t1` = a **fixture twin**, i.e. the scenario on the current build with ONE value the check
+reads broken in the twin's own process (`if probe.twin_on('X_TWIN'):`), so the FAIL comes from the check itself;
+`t2` = a historical build (`probe.rel('REL405')`), which may only prove that the feature is absent there. Each twin runs
+in its own process (run dirs `RUNS-twin`, `RUNS-twin-t2`), is cached under its own id, and ALL must FAIL with their own
+`expect`. One twin alone, by hand: `SWOSTEST_TWIN=t1 SWOSTEST_NO_RERUN=1 SWOSTEST_RUNS=<dir> ... swostest.py run NAME`.
+In a twin's process `probe.parent_runs()` is the runner's RUNS dir (an input an earlier scenario left there, e.g.
+world_cgame_view's `cv_s2_<ui>.CAR`).
 `SWOSTEST_PROBE=strict` turns a scenario without a twin into `PROBE-ERROR` and a SKIP into `SETUP-ERROR`; the canary run
 of an rc uses it once the twins exist. `SWOSTEST_TWIN=off` (developing a scenario) skips twins; `=force` ignores the cache.
 

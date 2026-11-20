@@ -6,9 +6,11 @@
     python3 tools/swostest_index.py -show NAME      # the scenario's source (its own lines only)
     python3 tools/swostest_index.py -tsv            # tab-separated, for scripts
 
+Rows = every scenario the runner knows (swostest.SCENARIOS: @scenario, the @sc of the modules swostest registers -
+fpgate, zonetest, tacgate, ... - and the generated ones such as practice_*), each located in its own file.
 Generated from the AST on each call (about 1 s, cached by the file's md5 under internal/swostest/index/), so it is never
 stale and never committed. Columns:
-  line    where `def NAME` is (open the file there, read the function, stop)
+  line    where `def NAME` is (tools/swostest.py, else module:line; open the file there, read the function, stop)
   canary  C1..C12 when the scenario is one of the release's 12 canaries (tools/probe.py CANARIES)
   twin    'twin' when it declares a red twin (@probe.red_twin), '-' otherwise
   needs   the environment variables it reads, directly or through the helpers it calls (two levels, harness plumbing such
@@ -16,6 +18,7 @@ stale and never committed. Columns:
 """
 import ast
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -53,50 +56,78 @@ def _env_reads(fn):
 
 
 def _calls(fn):
-    return {n.func.id for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    out = set()
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Call):
+            if isinstance(n.func, ast.Name):
+                out.add(n.func.id)
+            elif isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name) and n.func.value.id in ('T', 'mod', 'swostest'):
+                out.add(n.func.attr)          # (a registered module's call into swostest: T.world8485(), mod.build())
+    return out
 
 
-def _is_scenario(fn):
-    return any(isinstance(d, ast.Name) and d.id == 'scenario' for d in fn.decorator_list)
+REG = re.compile(r"^__import__\('([a-z0-9_]+)'\)\.register\(", re.M)
 
 
-def _twin(fn):
-    return any('red_twin' in ast.unparse(d) for d in fn.decorator_list)
+def modules(src=SRC):
+    """swostest.py and the modules it registers scenarios from (__import__('X').register(...): fpgate, zonetest...)."""
+    text = open(src, encoding='utf-8', errors='replace').read()
+    return [src] + [os.path.join(HERE, m + '.py') for m in REG.findall(text) if os.path.isfile(os.path.join(HERE, m + '.py'))]
 
 
 def build_index(src=SRC):
-    text = open(src, encoding='utf-8', errors='replace').read()
-    tree = ast.parse(text)
-    funcs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
-    direct = {k: _env_reads(f) for k, f in funcs.items()}
-    calls = {k: _calls(f) & set(funcs) for k, f in funcs.items()}
-    try:
-        sys.path.insert(0, HERE)
-        import probe
-        canary = {s: c['id'] for c in probe.CANARIES for s in c['scenarios']}
-    except Exception:
-        canary = {}
+    """One row per scenario the runner knows (swostest.SCENARIOS after import: @scenario, the registered modules'
+    @sc, the generated ones such as practice_*), located in its file by the AST: line, needs, self-build."""
+    sys.path.insert(0, HERE)
+    import probe
+    import swostest
+    trees = {f: ast.parse(open(f, encoding='utf-8', errors='replace').read()) for f in modules(src)}
+    top = {}                                   # every top-level function of every file (helpers called by name)
+    for f, t in trees.items():
+        for n in t.body:
+            if isinstance(n, ast.FunctionDef):
+                top.setdefault(n.name, n)
+    at = {}                                    # (file, first line incl. decorators) -> def node, nested ones too
+    for f, t in trees.items():
+        for n in ast.walk(t):
+            if isinstance(n, ast.FunctionDef):
+                first = min([d.lineno for d in n.decorator_list] + [n.lineno])
+                at[(f, first)] = n
+                at.setdefault((f, n.lineno), n)
+    direct = {}
+
+    def reads(node):
+        k = id(node)
+        if k not in direct:
+            direct[k] = _env_reads(node)
+        return direct[k]
+    canary = {s: c['id'] for c in probe.CANARIES for s in c['scenarios']}
     rows = []
-    for k, f in funcs.items():
-        if not _is_scenario(f):
-            continue
-        needs, seen, frontier, selfb = set(direct[k]), {k}, {k}, False
-        for _ in range(DEPTH):
-            nxt = set()
-            for g in frontier:
-                for h in calls[g] - seen - PLUMBING:
-                    if h in BUILDERS or h.endswith('_build'):
-                        selfb = True
-                    if _is_scenario(funcs[h]):
-                        continue
-                    needs |= direct[h]
-                    nxt.add(h)
-                seen |= nxt
-            frontier = nxt
-        if calls[k] & BUILDERS:
-            selfb = True
-        doc = (ast.get_docstring(f) or '').strip().splitlines()
-        rows.append({'name': k, 'line': f.lineno, 'end': f.end_lineno, 'canary': canary.get(k, ''), 'twin': _twin(f),
+    for name, fn in swostest.SCENARIOS.items():
+        raw = inspect.unwrap(fn)
+        f, line = os.path.realpath(inspect.getsourcefile(raw) or ''), raw.__code__.co_firstlineno
+        f = next((k for k in trees if os.path.realpath(k) == f), f)
+        node = at.get((f, line))
+        needs, selfb, end = set(), False, line
+        if node is not None:
+            end, line = node.end_lineno, node.lineno
+            needs, seen, frontier = set(reads(node)), {node.name}, [node]
+            for _ in range(DEPTH + (0 if node in top.values() else 1)):     # (a nested / generated def: one more level)
+                nxt = []
+                for g in frontier:
+                    for h in _calls(g) - seen - PLUMBING:
+                        if h in BUILDERS or h.endswith('_build'):
+                            selfb = True
+                        hn = top.get(h)
+                        if hn is None or h in swostest.SCENARIOS:
+                            continue
+                        needs |= reads(hn)
+                        nxt.append(hn)
+                        seen.add(h)
+                frontier = nxt
+        doc = (inspect.getdoc(fn) or '').strip().splitlines()
+        rows.append({'name': name, 'file': os.path.relpath(f, os.path.dirname(HERE)), 'line': line, 'end': end,
+                     'canary': canary.get(name, ''), 'twin': name in probe.TWINS,
                      'needs': sorted(needs - {'SWOSTEST_SCENARIO'}) + (['self-build'] if selfb else []),
                      'doc': doc[0] if doc else ''})
     return rows
@@ -104,7 +135,7 @@ def build_index(src=SRC):
 
 def index(src=SRC):
     h = hashlib.md5(open(src, 'rb').read()).hexdigest()
-    for pc in (os.path.join(HERE, 'probe.py'), os.path.abspath(__file__)):     # (the canary list, this generator)
+    for pc in modules(src)[1:] + [os.path.join(HERE, 'probe.py'), os.path.abspath(__file__)]:     # (the canary list, this generator)
         if os.path.exists(pc):
             h += hashlib.md5(open(pc, 'rb').read()).hexdigest()[:8]
     cf = os.path.join(CACHE, h + '.json')
@@ -134,22 +165,23 @@ def main(argv):
         if not r:
             print(f'no scenario {argv[1]!r}')
             return 1
-        lines = open(SRC, encoding='utf-8', errors='replace').read().splitlines()
-        print(f'# tools/swostest.py:{r["line"]}-{r["end"]}')
+        lines = open(os.path.join(os.path.dirname(HERE), r['file']), encoding='utf-8', errors='replace').read().splitlines()
+        print(f'# {r["file"]}:{r["line"]}-{r["end"]}')
         print('\n'.join(lines[r['line'] - 2:r['end']]))
         return 0
     tsv = '-tsv' in argv
     words = [w.lower() for w in argv if w != '-tsv']
     n = 0
     for r in rows:
-        hay = ' '.join([r['name'], r['doc'], ' '.join(r['needs']), r['canary']]).lower()
+        hay = ' '.join([r['name'], r['file'], r['doc'], ' '.join(r['needs']), r['canary']]).lower()
         if not all(w in hay for w in words):
             continue
         n += 1
         if tsv:
-            print('\t'.join([r['name'], str(r['line']), r['canary'] or '-', 'twin' if r['twin'] else '-', ','.join(r['needs']), r['doc']]))
+            print('\t'.join([r['name'], f"{r['file']}:{r['line']}", r['canary'] or '-', 'twin' if r['twin'] else '-', ','.join(r['needs']), r['doc']]))
         else:
-            print(f"{r['name']:28} {r['line']:>6} {r['canary'] or '-':4} {'twin' if r['twin'] else '-':4} "
+            where = str(r['line']) if r['file'] == 'tools/swostest.py' else f"{os.path.basename(r['file'])[:-3]}:{r['line']}"
+            print(f"{r['name']:28} {where:>12} {r['canary'] or '-':4} {'twin' if r['twin'] else '-':4} "
                   f"{_short(r['needs'])}  | {r['doc'][:100]}")
     if not tsv:
         print(f'({n} of {len(rows)} scenarios)')

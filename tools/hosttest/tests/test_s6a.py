@@ -122,6 +122,13 @@ CT_READS = {   # S6a (c), MC 15/11: GP_MGR / GP_IN.mgr and split's 'SH' block + 
     # on SaveCareerFile (the canonical file: careerTeam - NEWSEL -> careerTeam - OLDSEL).
     ('careerworld', 'tails.w_save_tail'): (1, 'C'), ('careerworld', 'tails.w_loadcopy'): (2, 'C'),
     ('benchnum', 'BN_TEAMS'): (2, 'C'),
+    # MC 20/11 (4.2 rc1, 900681f vs 014efe8): 49 -> 50 sites. ONE new site, obj4 0x1292d = s7swap.c run()'s career-club
+    # crossing, put_slot(S7_CTEAM, ...) (careerTeam's ADDRESS: the record moved to its new row, option B, MC 13/11) - the
+    # same source line as before, the redraw C build (-Oz) emits its tail twice; reached only from s7_season (a career
+    # whose registry is this build's): C. The other 5 labels are OLD sites re-attributed by the nearest-label scan (rc1
+    # exports more labels; obj1 / obj2 / obj3 counts unchanged, obj4 +1): the same reads, C as listed above.
+    ('s7swap', 'RI_HINTN'): (3, 'C'), ('fpmlv', 'FV_TF'): (3, 'C'), ('gkinj', 'SYMS.gk_903'): (1, 'C'),
+    ('gplay', 'csyms.cup_rule'): (1, 'C'), ('practice', 'GAME.BOTT_O'): (1, 'C'), ('sreg', 'IMP.s7_imp_walk'): (1, 'C'),
 }
 
 

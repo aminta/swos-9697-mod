@@ -74,7 +74,7 @@ CANARIES = [
          scenarios=['world_winners_oldsave', 'world_cuplist_mestre', 'world_s1conti_oldsave'],
          env='WINNERS_W27 / CUPLIST_REL = <rel>; the private saves (PHILA.CAR, MESTRE.CAR) present, else SKIP'),
     dict(id='C5', what='One port fixture played by the career club in slot 4', proves='the fixture-port adapter',
-         scenarios=['world_supc_home_win'], env='FPML_DATA=<the rc data: world5tm-h3p-supc> (an FPORT=1 build of it, the '
+         scenarios=['world_supc_home_win'], env='FPML_DATA=<the rc data: world5tm-h3s7rl3-supc> (an FPORT=1 build of it, the '
          'test switches GPLAY_FORCE / FPML_SEED / FPML_FORCE only)'),
     dict(id='C6', what='A continental group draw and its page', proves='the draw in the exe; the VIEW port',
          scenarios=['world_cgame_view'], env='CV_BUILD=<rel>'),

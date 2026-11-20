@@ -41,7 +41,7 @@ How it works
   ones on demand; debugger commands are typed in one go, short forms (~1 ms per char), no fixed sleeps.
 - Oracles: saves written by the game, checked in Python (car_info, W1 block, cup lists), the outcome, the dump.
 """
-import collections, glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
+import collections, glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, tempfile, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
@@ -39065,12 +39065,15 @@ def run_parallel(names, jobs):
     while todo or running:
         while todo and len(running) < jobs:
             n = todo.pop(0)
-            running[n] = subprocess.Popen([sys.executable, os.path.abspath(__file__), 'run', n], env=env,
-                                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        time.sleep(0.5)
-        for n, p in list(running.items()):
+            f = tempfile.TemporaryFile(mode='w+')     # (a file, not a PIPE: a child printing > 64 KB (S7 pack builds) blocked
+            running[n] = (subprocess.Popen([sys.executable, os.path.abspath(__file__), 'run', n], env=env,   # on the full pipe
+                                           stdout=f, stderr=subprocess.STDOUT, text=True), f)   # while this loop only read it
+        time.sleep(0.5)                                                                         # at exit: g3 hung 9.7 h, 20/11)
+        for n, (p, f) in list(running.items()):
             if p.poll() is not None:
-                out[n] = (p.returncode, p.stdout.read().strip())
+                f.seek(0)
+                out[n] = (p.returncode, f.read().strip())
+                f.close()
                 print(out[n][1], flush=True)
                 del running[n]
     print(f'{len(names)} scenarios, {jobs} at a time: {time.time() - t0:.0f} s', flush=True)

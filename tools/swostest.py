@@ -15064,6 +15064,8 @@ def options_gap():
             bot = max(g[i][1] + g[i][3] for i in g if i not in (0, 17, 18, 19))
             gaps = (top - (e[0][3] + e[0][5]), e[17][3] - bot)
             btn = tuple(e[i][3] for i in (17, 19, 18))
+            # (old rule: 3 px under the title / 2 px above EXIT TO DOS; the 4.2 GAMEPLAY re-layout measures (35, 3): the page as it is
+            #  was shown to Davide - "Ok" (Davide 20/11 ok, regia) - so the assert stays relaxed to gaps >= 2)
             check(n == dfm.NB + 2 and rows == [dfm.TOP + dfm.PITCH * j for j in range(dfm.NROWS)] and min(gaps) >= 2
                   and btn == (controls.QUIT_Y, controls.BTN_Y, 185),
                   f'pass {k}: {n} entries, rows {rows}, gaps {gaps}, EXIT TO DOS / CONTROLS / EXIT y {btn}', errs)

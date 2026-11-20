@@ -4563,7 +4563,8 @@ def zones_bskip():
     import mkseason
     b = ui_dir(os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c6')
-    sel = mkseason._hook_sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))[3]
+    exe = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}[UI]   # (the UI language's exe: its sites)
+    sel = mkseason._hook_sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', exe + '.EXE')))[3]
     # (country, league, club; up, play-off places; the B teams in the top: placed 1st and 3rd)
     nzb = os.environ.get('ZBSKIP_NZ_BUILD')            # (NZ: a build of the TM_NZ_CHAMP snapshot, W2627NZ_DATA)
     nzs = os.environ.get('W2627NZ_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-nzchamp')

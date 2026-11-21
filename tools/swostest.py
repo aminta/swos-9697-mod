@@ -35287,7 +35287,9 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
         b2 = cd2[-1]                    # (the cup's end; its entry: the first state with the bracket generated, ent
         b0 = next((b for b in cd2 if b[605] == 1), b2)   # then the order used - the season end rewrites it)
         nmk = world_gplay_cupd.nm_key
-        nm_ = [struct.unpack('<i', bytes.fromhex(ln.split()[2]))[0] for ln in lines2 if nmk and ln.startswith(f'HEX {nmk} ')]
+        lines1 = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()   # (the season end that
+        nm_ = [struct.unpack('<i', bytes.fromhex(ln.split()[2]))[0] for ln in lines1 + lines2   # moved them is season 1's session: season 2's starts at 0)
+               if nmk and ln.startswith(f'HEX {nmk} ')]
         world_gplay_cupd.nri = max(nm_) if nm_ else None
         world_gplay_cupd.exe, world_gplay_cupd.lines2, world_gplay_cupd.b0 = exe, lines2, b0   # (world_cdkn reads them)
         np_, nfc, nfp = b0[606], b0[607], b0[608]

@@ -126,7 +126,9 @@ def patch(p, ssyms, gsyms):
     syms, end, bss = cobj.link(p, obj, c_at, (4, 0), externs=ext, limit=swreg.FRND_END, text_obj=4, roots=roots)
     assert not bss, ('frstep.c: no .bss in the band (FR_BUF is swe.c\'s)', bss)
     left = swreg.FRND_END - end         # (the band from swreg only: MC 16/11, no test override)
-    assert left >= SLACK, ('frnd: the FRND band has under 256 B left - stop and report to MC', left)
+    floor = 0 if test else SLACK        # (4.2 rc4, MC 21/11: FR_TEST code never ships - a FRND_TEST build must only fit;
+                                        #  the 256 B floor holds for the release shape, which has no FR_TEST code)
+    assert left >= floor, (f'frnd: the FRND band has under {floor} B left - stop and report to MC', left)
     gsym['fr_season'] = syms['fr_season']
     code, fix, rel = nasmcave.assemble_obj(ASM, at, gsym, 4)
     assert len(code) == len(code0)

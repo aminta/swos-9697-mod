@@ -4653,6 +4653,18 @@ static const u8 *cf_cup(int id, const u8 **dtp) {
 }
 struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
 struct cf_state CF_ST;
+/* 4.2 rc4 (cf_italy, MC 21/11): the places of a SECOND league file (S7 Italy: 102 = A/B/C, 144 = D; a Serie D career
+   captured only 144, so the first Coppa Italia Serie C after D -> C had no places). Engine item 'CB'; 'CF' unchanged
+   (old saves load as before: CB zeroed = no second file). season = the capture's season + 1 (0 = none), file. */
+struct cb_state { u8 season, file; u8 rank[256]; };
+struct cb_state CB_ST;
+const u32 CB_STSZ = sizeof(struct cb_state);
+static const u8 *cf_ranks(int file) {   /* last season's places of `file` (CF_ST's season), 0 = none kept */
+    if (CF_ST.magic != 0x4643) return 0;
+    if (CF_ST.file == file) return CF_ST.rank;
+    if (CB_ST.season && CB_ST.season == (u8)(CF_ST.season + 1) && CB_ST.file == file) return CB_ST.rank;
+    return 0;
+}
 enum { CN_N = 32 };
 struct cn_state { u8 season, pad[3]; u8 name[CN_N]; };
 struct cn_state CN_ST;                  /* 4.0.5: the career club's division at the last season end (its name) */
@@ -4662,16 +4674,17 @@ static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): th
                                            as a word by cf_cap_c - every build since 4.2 (MC 15/11; S7 4.2 before): a club
                                            that crossed files since (S7, WSITES row 'CN') is still its old division's) */
         return (u32)(CN_ST.pad[0] | CN_ST.pad[1] << 8);
-    if (CF_ST.magic != 0x4643 || (u8)(CF_ST.season + 1) != GP_SEAS || (GP_MGR & 0xFF) != CF_ST.file) return 0xFFFE;
-    int lv = CF_ST.rank[GP_MGR >> 8] >> 5, hit = -1;    /* (no 'W': a save from before it, the first season end after
+    const u8 *rk = cf_ranks(GP_MGR & 0xFF);
+    if (!rk || (u8)(CF_ST.season + 1) != GP_SEAS) return 0xFFFE;
+    int lv = rk[GP_MGR >> 8] >> 5, hit = -1;    /* (no 'W': a save from before it, the first season end after
                                            loading - CF_ST's places have no group: the 1st of the level only when the level
                                            has ONE, else unknown, no line - was the lowest ordinal of every group's 1st) */
     for (int i = 0; i < 256; i++)
-        if (CF_ST.rank[i] == (1 | lv << 5)) {
+        if (rk[i] == (1 | lv << 5)) {
             if (hit >= 0) return 0xFFFE;
             hit = i;
         }
-    return hit < 0 ? 0xFFFE : (u32)CF_ST.file | (u32)hit << 8;
+    return hit < 0 ? 0xFFFE : (GP_MGR & 0xFF) | (u32)hit << 8;
 }
 #ifndef CF_SEED
 #define CF_SEED 0
@@ -4697,6 +4710,7 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
         if (CF_ST.magic != CF_MAGIC || CF_ST.season != (u8)season) {
             for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
             CF_ST.magic = CF_MAGIC; CF_ST.season = (u8)season; CF_ST.file = (u8)(w & 0xFF);
+            CB_ST.season = 0;           /* (rc4 cf_italy: no second file yet this season) */
         }
         if (w == GP_MGR && GP_MGR) {       /* (4.0.5: the division the career club played in - its name for the
                                            WINNERS page's last season, winners.py 'E': CN_ST, item 'CN') */
@@ -4714,10 +4728,19 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
                 CN_ST.pad[0] = (u8)w0; CN_ST.pad[1] = (u8)(w0 >> 8); CN_ST.pad[2] = 'W';
             }
         }
-        if ((w & 0xFF) != CF_ST.file) continue;
-        const u8 *dt = cf_dt(CF_ST.file);
+        int f = w & 0xFF;
+        u8 *rk = CF_ST.rank;
+        if (f != CF_ST.file) {          /* (rc4 cf_italy: the second file seen this season -> CB_ST; a third: skipped) */
+            if (CB_ST.season != (u8)(season + 1)) {
+                for (int i = 0; i < 256; i++) CB_ST.rank[i] = 0;
+                CB_ST.season = (u8)(season + 1); CB_ST.file = (u8)f;
+            }
+            if (f != CB_ST.file) continue;
+            rk = CB_ST.rank;
+        }
+        const u8 *dt = cf_dt(f);
         int lv = dt && dv < 16 ? dt[5 + dv] : 0;
-        CF_ST.rank[w >> 8] = (u8)((k + 1 > 31 ? 31 : k + 1) | lv << 5);
+        rk[w >> 8] = (u8)((k + 1 > 31 ? 31 : k + 1) | lv << 5);
     }
 }
 static int cf_build(int id, int season, u32 cteam, u16 *out) {
@@ -4733,12 +4756,13 @@ static int cf_build(int id, int season, u32 cteam, u16 *out) {
             if (b + GP_SLT[gb + i] == dv) cand[m++] = (u8)i;
         }
         if (m < want) return 0;                  /* (a division shorter than the format: keep the fixed list) */
-        int ranked = CF_ST.magic == CF_MAGIC && (u8)(CF_ST.season + 1) == (u8)season && CF_ST.file == lf;
+        const u8 *rk = cf_ranks(lf);    /* (rc4 cf_italy: the slot of the cup's file, CF or CB) */
+        int ranked = rk && (u8)(CF_ST.season + 1) == (u8)season;
         u32 key[256];
         int nl = dv < 16 ? dt[5 + dv] : 0;      /* (this division's level) */
         for (int i = 0; i < m; i++) {            /* (CF_SEED 1: relegated, stayers, promoted; then the place, the
                                                     ordinal; unplaced last) */
-            int o = cand[i], v = ranked ? CF_ST.rank[o] : 0, r = v ? v & 31 : 0xFF, ol = v ? v >> 5 : nl;
+            int o = cand[i], v = ranked ? rk[o] : 0, r = v ? v & 31 : 0xFF, ol = v ? v >> 5 : nl;
             int g = !v ? 3 : !CF_SEED ? 0 : ol < nl ? 0 : ol == nl ? 1 : 2;
             key[i] = (u32)g << 16 | (u32)r << 8 | (u32)o;
         }
@@ -4803,8 +4827,9 @@ u32 SC_TRACE;                           /* (the harness: 1 built, 2 final built,
                                            entrants unknown, 0x84 career club not in it, | 0x40 decided) */
 
 GP_X3S int sc_rank(u16 w) {                    /* last season's place (top division), 9 = none */
-    if (CF_ST.magic != CF_MAGIC || CF_ST.file != (w & 0xFF)) return 9;
-    int r = CF_ST.rank[w >> 8];
+    const u8 *rk = cf_ranks(w & 0xFF);
+    if (!rk) return 9;
+    int r = rk[w >> 8];
     return r && r < 32 ? r : 9;
 }
 /* 4.2 GPLX (MC 15/11: gplay was 16 B free in the S3 release shape, h3s): the supercup entrants' rule (sc_rule, with

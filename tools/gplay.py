@@ -2578,6 +2578,7 @@ WN_SIZE = 4 + 4 * 40    # (sizeof struct wn_state: the engine block's item 'WN',
 CN_SIZE = 4 + 32         # (sizeof struct cn_state: item 'CN', 4.0.5 the career club's last-season division name)
 BQ_SIZE = 24             # (gplay.c SEC_BQ: item 'BQ', 4.0.6 may each B team go up next season - zone colours)
 CF_SIZE = 4 + 256       # (sizeof struct cf_state: the engine block's item 'CF', cupsf's last-season places)
+CB_SIZE = 2 + 256       # (sizeof struct cb_state: item 'CB', 4.2 rc4 cf_italy: a second league file's places)
 SS_LEGACY = ('arg', 'usa')      # 4.0's stage-table leagues: bank 0 (engine item 'SS', its 4.0 layout kept)
 SS_ITEM = 6 + 4 * 32 * 12      # (sizeof struct gp_ss: one bank; 'SS2' = bank 1, the career league's, one bank)
 SS_BANKS = [1, None]            # patch.py: [bank count, GP_SSF bytes or None] (ss_banks)
@@ -3099,7 +3100,7 @@ def s7_flags():
 
 
 GPLX_ROOTS = ['sc_rule']                             # (gplx.c's entry points gplay.c calls)
-GPLX_EXT = ('GP_SEAS', 'SC_ST', 'CF_ST', 'WN_ST', 'wn_find')   # (gplay.c's symbols gplx.c reads)
+GPLX_EXT = ('GP_SEAS', 'SC_ST', 'CF_ST', 'CB_ST', 'WN_ST', 'wn_find')   # (gplay.c's symbols gplx.c reads)
 
 
 def gplx_on():
@@ -3755,7 +3756,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
         _cobj.add_ptr(p, syms['GP_RPS'][1] + 4 * i, o, off, objn=syms['GP_RPS'][0])
     p.put(*syms['GP_RPSN'], struct.pack('<I', len(rps)))
     print(f'exe: gp_repoint_c candidates GP_RPS: {len(rps)} structs ({len(sacups.SLOT23)} slot chain, worlds {cwt})')
-    LABELS.update(lab, GP_USRP=syms['GP_USRP'], GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_USRP=syms['GP_USRP'], GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CB_ST=syms['CB_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],

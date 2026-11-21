@@ -167,6 +167,8 @@ ROWS = [
     # file CF_ST.file (byte +3); a crosser's row is cleared (cf-st-s7.md); CN (struct cn_state, 36 B: u8 season, pad[3],
     # name[32]): pad[0..1] = the career club's division winner's WORD, pad[2] = 'W' marks it (S7 builds)
     ('CF', 4, 0, 256, WS_R, 3),                 # (WS_R stride = fill | file << 8: fill 0, file 0 = the item's byte +3)
+    # CB (gplay.c struct cb_state, 258 B: u8 season, file; u8 rank[256]; 4.2 rc4 cf_italy): the second file's places, as CF
+    ('CB', 2, 0, 256, WS_R, 1),
     ('CN', 1, 2, 1, WS_W, 0),
     # XS (xtra.py xsold, 2 + 3 x XSOLD 128): dw count, then {dw seller's word, db index} (S7 audit, MC 13/11)
     ('XS', 2, 3, 128, WS_W, 0),

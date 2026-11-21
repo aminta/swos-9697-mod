@@ -85,7 +85,8 @@ def expected_rows():
         ('prg', 'O(pr_club, glob)'), ('PR_N', 'PR_N'),
         ('SC_H', 'SC_H'), ('SC_NE', 'SC_NE'), ('scz', 'sizeof(SC_ST)'),
         ('cfz', 'sizeof(struct cf_state)'), ('cfrank', 'O(cf_state, rank)'), ('cffile', 'O(cf_state, file)'),
-        ('cfn', 'Z(cf_state, rank)'), ('cnz', 'sizeof(struct cn_state)'), ('cnpad', 'O(cn_state, pad)')])
+        ('cfn', 'Z(cf_state, rank)'), ('cnz', 'sizeof(struct cn_state)'), ('cnpad', 'O(cn_state, pad)'),
+        ('cbz', 'sizeof(struct cb_state)'), ('cbrank', 'O(cb_state, rank)'), ('cbn', 'Z(cb_state, rank)')])
     c = probe('#include "conti.h"\n#include "uesum.h"', [
         ('ct', 'sizeof(struct ct_state)'), ('hold', 'O(ct_state, hold)'), ('holdz', 'Z(ct_state, hold[0])'),
         ('NCUP', 'NCUP'), ('ed', 'sizeof(struct ct_ed)'), ('mgr', 'O(ct_ed, mgr)'), ('e', 'O(ct_ed, e)'),
@@ -106,6 +107,7 @@ def expected_rows():
              'XL': (5 + 3 * xleft.XLMAX, xleft.XL_SIZE)}
     sizes['SS2'] = sizes['SS']
     sizes['CF'], sizes['CN'] = (g['cfz'], gplay.CF_SIZE), (g['cnz'], gplay.CN_SIZE)
+    sizes['CB'] = (g['cbz'], gplay.CB_SIZE)
     assert g['srteam'] == 0 and g['SC_NE'] == supercup.NE, (g['srteam'], g['SC_NE'])
     rows = [('GP', g['srow'], g['srz'], g['SD'] * g['GT'], W)]
     rows += [('GP', g['ko'] + k * g['koz'] + g['kot'], 2, g['KN'], W) for k in range(2)]
@@ -123,13 +125,15 @@ def expected_rows():
     rows += [('CT', c['hold'], c['holdz'], c['NCUP'], W), ('CE', c['mgr'], 0, 1, W), ('CE', c['e'], c['ez'], c['NED'], W)]
     rows += [('US', c['t'] + c[f], c['tz'], c['NTIE'], W) for f in ('tx', 'ty')] + [('US', c['lw'], 2, c['NLP'], W)]
     rows += [('CF', g['cfrank'], 0, g['cfn'], wsites.WS_R), ('CN', g['cnpad'], 2, 1, W)]
+    rows += [('CB', g['cbrank'], 0, g['cbn'], wsites.WS_R)]
     rows += [('XS', 2, 3, xtra.XSOLD, W), ('XL', 5, 3, xleft.XLMAX, W)]   # (BU: HOME words, not walked)
     return rows, sizes
 
 
 def test_wsites_layout():
     rows, sizes = expected_rows()
-    cffile = probe('#include "gplay.c"', [('f', 'O(cf_state, file)')])['f']
+    pf = probe('#include "gplay.c"', [('f', 'O(cf_state, file)'), ('b', 'O(cb_state, file)')])
+    cffile, cbfile = pf['f'], pf['b']
     errs = []
     for it, (a, b) in sizes.items():
         if a != b:
@@ -140,7 +144,7 @@ def test_wsites_layout():
     used = {}
     for it, off, st, cnt, form, aux in [r for r in wsites.ROWS if isinstance(r[0], str)]:
         R = form == wsites.WS_R
-        if form not in (wsites.WS_W, wsites.WS_G, wsites.WS_R) or aux != ({'CF': cffile, 'CD': 0}.get(it, -1) if R else 0):
+        if form not in (wsites.WS_W, wsites.WS_G, wsites.WS_R) or aux != ({'CF': cffile, 'CB': cbfile, 'CD': 0}.get(it, -1) if R else 0):
             errs.append(f'{it}+{off}: form {form} aux {aux} (W / G; R on CF with its file byte at +{cffile}, on CD with '
                         f'the file literal)')
         if off + (cnt if R else max(cnt - 1, 0) * st + 2) > sizes[it][1]:

@@ -26,10 +26,20 @@ extern u8 SC_ST[SC_H + 12 * SC_NE];
 extern struct cf_state CF_ST;
 extern struct wn_state WN_ST;
 u32 wn_find(int ty, int ix, int pre);
+struct cb_state { u8 season, file; u8 rank[256]; };    /* (4.2 rc4 cf_italy: gplay.c's second file's places, item 'CB') */
+_Static_assert(sizeof(struct cb_state) == 258, "gplay.c cb_state layout");
+extern struct cb_state CB_ST;
+static const u8 *cf_ranks(int file) {   /* (as gplay.c's: last season's places of `file`, CF or CB, 0 = none) */
+    if (CF_ST.magic != CF_MAGIC) return 0;
+    if (CF_ST.file == file) return CF_ST.rank;
+    if (CB_ST.season && CB_ST.season == (u8)(CF_ST.season + 1) && CB_ST.file == file) return CB_ST.rank;
+    return 0;
+}
 #endif
-static u16 sc_place(int file, int place) {     /* last season's top-division club at place (CF_ST), 0 = unknown */
-    if (CF_ST.magic != CF_MAGIC || CF_ST.file != file) return 0;
-    for (int i = 0; i < 256; i++) if (CF_ST.rank[i] == place) return (u16)(file | i << 8);   /* (level 0 << 5) */
+static u16 sc_place(int file, int place) {     /* last season's top-division club at place (CF_ST / CB_ST), 0 = unknown */
+    const u8 *rk = cf_ranks(file);
+    if (!rk) return 0;
+    for (int i = 0; i < 256; i++) if (rk[i] == place) return (u16)(file | i << 8);   /* (level 0 << 5) */
     return 0;
 }
 static u16 sc_cup(int id, int fin) {           /* the stored cup winner (fin 0) / finalist (1), 0 = unknown */

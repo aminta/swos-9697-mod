@@ -18,11 +18,23 @@ SHIFT = 0x01000000
 
 GLOBAL = {}                                            # symbols every module's source may use (S6a: W_GT,
                                                        # careerworld's world-rule gate), unless its own table has them
+NO_WORLD = [False]                                     # patch.py: a build without a career world (careerworld.patch
+WGT_STUB = 'cmp word [GAMETYPE], 4'                 #  never runs, no W_GT): `call W_GT` -> the pre-S6a site (908a12b)
+                                                       #  = w_gt with world byte 0 (ZF = 1 only in a career)
+
+
+def _globals(src, symbols):
+    """GLOBAL symbols src uses, then its own; in a no-world build an undefined W_GT's calls become WGT_STUB."""
+    symbols = {**{k: v for k, v in GLOBAL.items() if k in src}, **symbols}
+    if NO_WORLD[0] and 'W_GT' in src and 'W_GT' not in symbols:
+        import re
+        src = re.sub(r'\bcall\s+W_GT\b', WGT_STUB, src)
+    return src, symbols
 
 
 def _nasm(src, org, symbols, bases, obj=1):
     head = [f'bits 32', f'org {org + bases[obj]:#x}']
-    symbols = {**{k: v for k, v in GLOBAL.items() if k in src}, **symbols}
+    src, symbols = _globals(src, symbols)
     for name, (obj, off) in symbols.items():
         if obj == 0:                                   # plain constant / text
             head.append(f'%define {name} {off}')
@@ -100,7 +112,7 @@ def labels(src, org, symbols):
     """Addresses (obj1 offsets) of the global labels in src, from a nasm map file."""
     import re
     head = ['bits 32', f'org {org:#x}']
-    symbols = {**{k: v for k, v in GLOBAL.items() if k in src}, **symbols}
+    src, symbols = _globals(src, symbols)
     for name, (obj, off) in symbols.items():
         head.append(f'%define {name} {off}' if obj == 0 else f'%define {name} {off:#x}')
     with tempfile.TemporaryDirectory() as t:

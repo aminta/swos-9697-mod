@@ -235,6 +235,7 @@ def patch_exe(src, dst, remap, lang='it'):
     grown = dst + '.tmp'
     data = open(src, 'rb').read()
     worlds = bool(mkseason.worlds())
+    nasmcave.NO_WORLD[0] = not worlds                  # (4.2.x: no-world test builds - lp36 - stub W_GT)
     if worlds:                                         # 4.0.5: DATA\\KITFIX.DAT beside the exe (careerworld w_kits)
         import kitfix
         nkf = kitfix.gen(os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA'))

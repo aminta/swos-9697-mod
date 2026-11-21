@@ -41141,8 +41141,14 @@ def friendlies_reload_9697():
     keep = {k: os.environ.get(k) for k in keys}
     old, W84_HOOK = W84_HOOK, hook
     try:
-        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 1996-97', W8485_WNUM='0', W8485_SMALL='1', W8485_NOSACK='1',
-                          W8485_TEAM=os.environ.get('FR_TEAM_9697', 'EUROPA,ITALIA,SERIE A,LAZIO'))
+        if os.environ.get('FR_RELOAD_WORLD') == '8485':          # (the Europe 1984-85 world: friendlies_reload_8485)
+            os.environ.update(W8485_BUILD=exe, W8485_WNUM='4', W8485_NOSACK='1',
+                              W8485_TEAM=os.environ.get('FR_TEAM_8485', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL'))
+            for k in ('W8485_WORLD', 'W8485_SMALL'):
+                os.environ.pop(k, None)
+        else:
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 1996-97', W8485_WNUM='0', W8485_SMALL='1',
+                              W8485_NOSACK='1', W8485_TEAM=os.environ.get('FR_TEAM_9697', 'EUROPA,ITALIA,SERIE A,LAZIO'))
         for k in ('W8485_FROM', 'W8485_ONE'):
             os.environ.pop(k, None)
         ok, msg = world8485()
@@ -41158,6 +41164,20 @@ def friendlies_reload_9697():
     for sn in (1, 2):
         check(len(seen[sn]) == 4, f'season {sn}: {len(seen[sn])} friendly result screens (want 4; rc1 reloads to 1)', errs)
     return not errs, '; '.join(errs) or f'4 + 4 friendly result screens (season 2 after the reload)'
+
+
+@scenario
+def friendlies_reload_8485():
+    """4.2 rc3 gate: friendlies_reload_9697 in the Europe 1984-85 career world (world 4; LIVERPOOL, FR_TEAM_8485 overrides)."""
+    keep = os.environ.get('FR_RELOAD_WORLD')
+    os.environ['FR_RELOAD_WORLD'] = '8485'
+    try:
+        return friendlies_reload_9697()
+    finally:
+        if keep is None:
+            os.environ.pop('FR_RELOAD_WORLD', None)
+        else:
+            os.environ['FR_RELOAD_WORLD'] = keep
 
 
 def main(argv):

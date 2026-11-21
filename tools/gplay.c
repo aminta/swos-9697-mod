@@ -2754,6 +2754,14 @@ static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs)
 static void cd_rank(void) {
     const u8 *dt = GP_CDD;
     int df = dt[0], dc = dt[1], lf = GP_CDT[2], n = 0;
+#if GP_CD2                                              /* 4.2 rc4 (MC 21/11, world_gplay_cupd2; Shaved's reading): S7
+                                                           data - the Serie D file's own league struct, its groups at
+                                                           LOCAL divisions 0..8 (GP_IN = that struct's), not the pack's
+                                                           df..df+dc: groups A..E were never ranked (65 clubs at 40h).
+                                                           Every captured division, the file byte selects (lf holds
+                                                           only Serie D in S7) */
+    df = 0; dc = GD;
+#endif
     if (CD_ST.nrc < 255) CD_ST.nrc++;
     for (int d = df; d < df + dc && d < GD; d++)        /* (GP_IN: the league just ended - another country's: none) */
         for (int k = 0; k < GP_IN.n[d] && k < GT; k++) if ((GP_IN.t[d][k].team & 0xFF) == lf) n++;

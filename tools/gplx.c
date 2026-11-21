@@ -37,7 +37,11 @@ static const u8 *cf_ranks(int file) {   /* (as gplay.c's: last season's places o
 }
 #endif
 static u16 sc_place(int file, int place) {     /* last season's top-division club at place (CF_ST / CB_ST), 0 = unknown */
+#if defined(GP_CFRANKS) || !defined(GP_GPLX_INLINE)
     const u8 *rk = cf_ranks(file);
+#else
+    const u8 *rk = CF_ST.magic == CF_MAGIC && CF_ST.file == file ? CF_ST.rank : 0;   /* (an older gplay.c: CF only) */
+#endif
     if (!rk) return 0;
     for (int i = 0; i < 256; i++) if (rk[i] == place) return (u16)(file | i << 8);   /* (level 0 << 5) */
     return 0;

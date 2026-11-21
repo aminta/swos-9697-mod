@@ -93,12 +93,7 @@ def test_cflast1():
     if ref.returncode:
         notes.append(f'repro SKIPPED ({REF_COMMIT} not in this repo)')
     else:
-        dr = os.path.join(d, 'ref')     # (the ref's own gplx.c next to its gplay.c: quoted includes look there first -
-        os.makedirs(dr, exist_ok=True)  #  today's gplx.c reads cf_ranks / CB_ST, rc4 cf_italy)
-        gx = subprocess.run(['git', '-C', TOOLS, 'show', f'{REF_COMMIT}:tools/gplx.c'], capture_output=True, text=True)
-        if not gx.returncode:
-            open(os.path.join(dr, 'gplx.c'), 'w').write(gx.stdout)
-        R = _lib(dr, ref.stdout, 'ref')
+        R = _lib(d, ref.stdout, 'ref')
         R.gp_wn_c.restype = ctypes.c_uint32
         R.cf_cap_c.argtypes = (ctypes.c_uint32, ctypes.c_char_p, ctypes.c_uint32)
         got = _run(R, keep, 22)

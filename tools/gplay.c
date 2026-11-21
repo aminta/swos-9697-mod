@@ -4659,6 +4659,7 @@ struct cf_state CF_ST;
 struct cb_state { u8 season, file; u8 rank[256]; };
 struct cb_state CB_ST;
 const u32 CB_STSZ = sizeof(struct cb_state);
+#define GP_CFRANKS 1                    /* (gplx.c inline: cf_ranks exists - an older gplay.c without it compiles too) */
 static const u8 *cf_ranks(int file) {   /* last season's places of `file` (CF_ST's season), 0 = none kept */
     if (CF_ST.magic != 0x4643) return 0;
     if (CF_ST.file == file) return CF_ST.rank;

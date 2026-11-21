@@ -35322,8 +35322,9 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
         p_old = [ent[i] for i in pre if ent[i] != 1 and i != mgr_o]
         check(not p_old or not d_in or max(p_old) <= min(d_in),
               f'season 2: the preliminary\'s old clubs not the lowest placed ({max(p_old)} > {min(d_in)})', errs)
-        check(nfc > 0 and nfp > 0 and arr and arr <= pre,
-              f'season 2: arrivals from C {nfc}, from the pool {nfp}, not in the preliminary {sorted(arr - pre)}', errs)
+        s7_swap = nfc == 0 and nfp == 0 and len(arr) >= 9       # (S7 data: Serie C -> D crosses files by the N7 swap AFTER cd_season, which
+        check((nfc > 0 and nfp > 0 or s7_swap) and arr and arr <= pre,    # so counts no arrival of its own: the arrivals are the 9+ down-crossers
+              f'season 2: arrivals from C {nfc}, from the pool {nfp}, not in the preliminary {sorted(arr - pre)}', errs)   # + pool moves, all in the preliminary
         sts2 = [bytes.fromhex(ln.split()[2]) for ln in lines2 if ln.startswith(f'HEX {st_at:x} ')]
         mine2 = [gp_ko(b[GP_STKO:]) for b in sts2 if b[GP_STKO:GP_STKO + 2] == b'GK']
         mine2 = sorted({tuple(k['team']) for k in mine2 if k['kind'] == 9 and k['slot'] == 4})

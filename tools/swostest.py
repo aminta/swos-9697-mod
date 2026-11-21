@@ -35286,6 +35286,9 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
             return False, '; '.join(errs + ['season 2: the cup never ran'])
         b2 = cd2[-1]                    # (the cup's end; its entry: the first state with the bracket generated, ent
         b0 = next((b for b in cd2 if b[605] == 1), b2)   # then the order used - the season end rewrites it)
+        nmk = world_gplay_cupd.nm_key
+        nm_ = [struct.unpack('<i', bytes.fromhex(ln.split()[2]))[0] for ln in lines2 if nmk and ln.startswith(f'HEX {nmk} ')]
+        world_gplay_cupd.nri = max(nm_) if nm_ else None
         world_gplay_cupd.exe, world_gplay_cupd.lines2, world_gplay_cupd.b0 = exe, lines2, b0   # (world_cdkn reads them)
         np_, nfc, nfp = b0[606], b0[607], b0[608]
         ent = b0[348:604]
@@ -35324,6 +35327,10 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
         p_old = [ent[i] for i in pre if ent[i] != 1 and i != mgr_o]
         check(not p_old or not d_in or max(p_old) <= min(d_in),
               f'season 2: the preliminary\'s old clubs not the lowest placed ({max(p_old)} > {min(d_in)})', errs)
+        nri_ = world_gplay_cupd.nri                              # (RI_NMOVES, logged by a HOSTTEST_SYMS build: world_gplay_cupd2; None = not logged)
+        if nri_ is not None:                                     # S7 data, MC 21/11: every arrival = 9 down-crossers + the pool moves (+ cd_season's own)
+            check(len(arr) == 9 + nri_ + nfc + nfp, f'season 2: {len(arr)} arrivals, want 9 down-crossers + {nri_} pool moves + {nfc} + {nfp} = '
+                  f'{9 + nri_ + nfc + nfp}', errs)
         s7_swap = nfc == 0 and nfp == 0 and len(arr) >= 9       # (S7 data: Serie C -> D crosses files by the N7 swap AFTER cd_season, which
         check((nfc > 0 and nfp > 0 or s7_swap) and arr and arr <= pre,    # so counts no arrival of its own: the arrivals are the 9+ down-crossers
               f'season 2: arrivals from C {nfc}, from the pool {nfp}, not in the preliminary {sorted(arr - pre)}', errs)   # + pool moves, all in the preliminary
@@ -37052,12 +37059,22 @@ def world_cdkn_fall():
                                          f'today\'s draw ({info["np"]} preliminary ties)')
 
 
+world_gplay_cupd.nm_key, world_gplay_cupd.nri = None, None   # (set by world_gplay_cupd2's hexf; other callers log none)
+
+
 @scenario
 def world_gplay_cupd2():
     """world_gplay_cupd over two seasons: season 2's Coppa D bracket generated (gplay.c cd_season / cd_make) from the
     real Serie D of that season - the new arrivals (relegated from Serie C, promoted from the off-file Eccellenza pool)
     all in the preliminary round, the career club's ties played in slot 4, the cup over by the season end"""
-    return world_gplay_cupd(two=True)
+    def hexf(exe):                      # (S7 x pool: RI_NMOVES, the pool moves of the season end; a build without the S7 swap logs none)
+        js = json.load(open(os.path.join(exe, 'ITALIAN.syms.json'))).get('s7swap', {})
+        if 'RI_NMOVES' not in js:
+            return ''
+        world_gplay_cupd.nm_key = f"o{js['RI_NMOVES'][0]}/{js['RI_NMOVES'][1]:x}"
+        return f',{world_gplay_cupd.nm_key}:4'
+    world_gplay_cupd.nm_key, world_gplay_cupd.nri = None, None
+    return world_gplay_cupd(two=True, extra={'HOSTTEST_SYMS': '1'}, hexf=hexf)
 
 
 def full_season(country, team):

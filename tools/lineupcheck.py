@@ -20,7 +20,7 @@ REAL_FILES = ('TMW5.',)         # the World 2026-27 namespace: the only files wi
 
 
 def real_lineups(d):
-    """{club name} with lineup_src 'real' (reallineups.py: the real XI in rows 1..11) in the world data dir of the release
+    """{(team file number, club name)} with lineup_src 'real' (reallineups.py: the real XI in rows 1..11) in the world data dir of the release
     whose DATA dir is d: W2627REL_DATA, else 'data <dir>' of the release's build.log (buildrel.sh). set() without one."""
     import csv, re
     src = os.environ.get('W2627REL_DATA')
@@ -29,10 +29,17 @@ def real_lineups(d):
         m = re.search(r', data (\S+),', open(log).read()) if os.path.exists(log) else None
         src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'internal', 'world2526', m.group(1)) if m else ''
     out = set()
-    for r_, _, fs in os.walk(src) if src and os.path.isdir(src) else ():
+    if not (src and os.path.isdir(src)):
+        return out
+    # (Motore 21/11: keyed by (team file, name) - record byte 0 is its file number: TMW5.216's INTER (Taiwan) is not
+    #  TMW5.102's real INTER. The country -> file map is the world's build report <src>.txt, 'ITA file 102 ...')
+    fno = {ln.split()[0]: int(ln.split()[2]) for ln in open(src.rstrip('/') + '.txt') if ' file ' in ln}
+    for r_, _, fs in os.walk(src):
         if 'clubs.csv' in fs:
-            out |= {c['name'] for c in csv.DictReader(open(os.path.join(r_, 'clubs.csv'), encoding='utf-8'))
-                    if c.get('lineup_src') == 'real'}
+            for c in csv.DictReader(open(os.path.join(r_, 'clubs.csv'), encoding='utf-8')):
+                if c.get('lineup_src') == 'real':
+                    assert c['country'] in fno, ('lineupcheck: real club of a country without a team file', c['name'], c['country'])
+                    out.add((fno[c['country']], c['name']))
     return out
 
 
@@ -45,8 +52,17 @@ def control():
     for j, p in enumerate([0] + [6] * 10 + [3, 3, 3, 3, 7]):     # G + 10 M start; 4 D + an A on the bench
         r[76 + 38 * j + 26] = p << 5
     b = (1).to_bytes(2, 'big') + bytes(r)
-    assert check_file(b, real={'OTHER'})[4], 'lineupcheck control: a suboptimal default line-up passed'
-    assert not check_file(b, real={'CTRL'})[4], 'lineupcheck control: a real XI was checked against all 16'
+    assert check_file(b, real={(0, 'OTHER')})[4], 'lineupcheck control: a suboptimal default line-up passed'
+    assert not check_file(b, real={(0, 'CTRL')})[4], 'lineupcheck control: a real XI was checked against all 16'
+    o = bytearray(r)                              # (the same name in another team file is not that real club: Taiwan's INTER)
+    o[0] = 1
+    assert check_file((1).to_bytes(2, 'big') + bytes(o), real={(0, 'CTRL')})[4], 'lineupcheck control: a namesake in another file was taken as real'
+    for off, val, want in ((60, bytes([1, 0]), 'no keeper in slot 1'), (70, bytes([11, 10]), 'the XI is not rows 1..11'),
+                           (76 + 38 * 5 + 26, b'\0', 'a second keeper in the XI'), (24, bytes([len(mkseason.TACTICS)]), 'is not a game tactic')):
+        t = bytearray(r)                          # (red twins, Regia 21/11: a broken real structure must FAIL, for its reason)
+        t[off:off + len(val)] = val
+        w = check_file((1).to_bytes(2, 'big') + bytes(t), real={(0, 'CTRL')})[4]
+        assert w and want in w[0][2], f'lineupcheck control: a real XI with {want!r} gave {w}'
 
 
 def check_dir(d, orig_dir=None, real=None):
@@ -84,11 +100,25 @@ def orig_shapes(d):
     return out
 
 
+def real_structure(lu, pos, tactic):
+    """'' (fine) or what is wrong with a real line-up's structure: the XI = rows 1..11, the keeper in slot 1 and no other
+    keeper in the XI, a tactic of the game (mkseason.TACTICS; 0 = 4-4-2 is a real formation too)."""
+    if sorted(lu[:11]) != list(range(11)):
+        return 'the XI is not rows 1..11'
+    if pos[lu[0]] != 0:
+        return 'no keeper in slot 1'
+    if any(pos[j] == 0 for j in lu[1:11]):
+        return 'a second keeper in the XI'
+    if tactic >= len(mkseason.TACTICS):
+        return f'tactic {tactic} is not a game tactic'
+    return ''
+
+
 def check_file(data, orig=None, shapes=(), real=()):
     """-> (records, orig_same, exact, other_ok, wrong[(ordinal, name, got)]). A record byte-identical to the original
     game's (orig = that file's bytes) is left alone (its lineup is the original's, whatever its squad). Any other must
-    start 11 players whose roles match the slot roles at least as well as the best choice of its squad (auto_lineup;
-    a club in real: of its own XI, rows 1..11);
+    start 11 players whose roles match the slot roles at least as well as the best choice of its squad (auto_lineup);
+    a club in real ((team file, name)) is checked for its structure only (real_structure; its roles: lineups_gate);
     'exact' = all 11 slot positions equal."""
     n = struct.unpack('>H', data[:2])[0]
     assert len(data) >= 2 + 684 * n
@@ -105,17 +135,21 @@ def check_file(data, orig=None, shapes=(), real=()):
         name = r[5:22].split(b'\0')[0].decode('latin1')
         if sorted(lu) != list(range(16)):
             wrong.append((i, name, 'not a permutation')); continue
+        if (r[0], name) in real:
+            # 4.2 real line-up (clubs.csv lineup_src 'real', reallineups2: rows 1..11 = the real XI, its tactic the club's
+            # own record): the XI and its slots are the data's choice by the players' MATCH-SHEET roles, which a team file
+            # does not hold (its position bytes are the TM registration: a wing-back registered RB, a 3-4-2-1 attacking
+            # midfielder registered M). So only the structure is checked here; the roles are lineups_gate's (the sheet
+            # roles), a gate of its own on the rc data dir (Regia 21/11: one rule, no per-club exceptions).
+            bad = real_structure(lu, pos, r[24])
+            if bad:
+                wrong.append((i, name, 'real line-up: ' + bad))
+            else:
+                ok_other += 1
+            continue
         got = [pos[j] for j in lu[:11]]
         slot = mkseason.slots_of(r[24])          # (4.2: the record's own tactic's slot roles, 4-4-2's for 0)
         best = [pos[j] for j in mkseason.auto_lineup(pos, r[24])[:11]]
-        if name in real and _score(got, slot) < _score(best, slot):
-            # 4.2 real line-up (clubs.csv lineup_src 'real', reallineups: rows 1..11 = the real XI): the XI is the data's
-            # choice, so only its slots are checked - against the best of those 11, the flexible roles counted
-            if sorted(lu[:11]) != list(range(11)):
-                wrong.append((i, name, 'real line-up: the XI is not rows 1..11')); continue
-            vp = (mkseason.flex_positions(pos[:11], r[24]) or pos[:11]) + pos[11:]
-            got = [vp[j] for j in lu[:11]]
-            best = [vp[j] for j in mkseason.auto_lineup(vp, r[24], pool=range(11))[:11]]
         if _score(got, slot) < _score(best, slot):
             wrong.append((i, name, got)); continue
         if got == slot:

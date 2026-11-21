@@ -13206,6 +13206,51 @@ def scorers_int():
 
 
 @scenario
+@probe.red_twin(env={'SWOSTEST_BUILD': os.path.join(MAIN, 'c', 'REL412c', 'SWOS')}, id='t2', expect='trapped in the player list',
+                 why='the 4.1.2 release exe (REL412c): after GOL > LEFT no key brings the buttons back')
+def squad_gol_left():
+    """4.2 rc4 guard (Marco Scarsella on 4.1.2, 21/11): the career club's SQUADRA page > GOL (the goals page: columns LEG / COP /
+    EUR / TOT, its bottom buttons not drawn) > LEFT (the cursor enters the player list on the left) > FIRE must be back on the
+    team page with its buttons PRATICA / GOL / ESCI lit. On the 4.1.2 release exe the cursor stays trapped in the list (no key
+    brings the buttons back): that exe is the red twin. KEYS only. SQGOL_CAR (default Luigi's PROVA.CAR: NAPOLI), SWOSTEST_BUILD
+    (the release exe, Italian: the button names)."""
+    car = os.environ.get('SQGOL_CAR') or os.path.join(MAIN, 'internal', 'reports', 'luigi-4.0.1', 'PROVA.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: {car} missing'
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
+    errs, info = [], []
+
+    def lit(s):
+        """the bottom buttons shown (not inverted / hidden): the entries of the team page's button row"""
+        sc = s.screen()
+        return sorted(e[1] for e in sc.entries if e[1] in ('PRATICA', 'GOL', 'ESCI') and not e[2] and sc.geom[e[0]][1] > 150)
+    with Session('squad_gol_left', b, {'W84A.CAR': car}, 'dump:2', 300, 1) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        for _ in range(4):
+            if s.screen().find('SQUADRA', exact=True) is not None:
+                break
+            s.send('fire dump:1.5')
+        if press(s, s.screen(), 'SQUADRA', wait=3) is None:
+            return False, 'SQUADRA not reached'
+        before = lit(s)
+        check(before == ['ESCI', 'GOL', 'PRATICA'], f'team page buttons {before}', errs)
+        if press(s, s.screen(), 'GOL', wait=3) is None:
+            return False, 'the GOL button not found'
+        goals = lit(s)
+        info.append(f'goals page buttons {goals}')
+        s.shot('gol')
+        s.send('left dump:1.5')
+        s.send('fire dump:1.5')
+        s.shot('after_left_fire')
+        after = lit(s)
+        check(after == ['ESCI', 'GOL', 'PRATICA'], f'GOL > LEFT > FIRE: the team page is not back (buttons {after}): trapped in the player list', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def scorers_int_world():
     """scorers_int on a World 2026-27 career's own season (SCORERS_TEAM, default NAPOLI: Serie A + the Champions
     League): season 1 played (world8485, results only) and saved at its end (W8485_SAVE_END), then loaded and the

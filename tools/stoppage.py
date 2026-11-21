@@ -553,6 +553,8 @@ def layout(at, nworlds, nfiles):
     at; the counts are ST_WTAB's and ST_FTAB's first bytes)."""
     sym = {k: (2, 0) for k in SYMS}
     sym.update({'WORLD_BYTE_': (0, 0), 'ST_IDX_': (0, ST_IDX), 'NL_': (0, NL), 'WQ_': (0, WQ)})
+    sym['W_GT'] = (1, 0)        # (the harness's own layout: `call W_GT` = 5 bytes as in every world build, whatever
+                                #  careerworld / NO_WORLD left in nasmcave's process state - rc3 stoppage_time, 21/11)
     z = (0, (0, 0, 0, 0, 0))
     return nasmcave.labels(source([z] * nworlds, [z] * nfiles), at, sym)
 

@@ -31542,8 +31542,12 @@ def world_winners_lastdiv():
     last = [x.strip() for x in more[0]] if more else []
     lg = winner_blocks(last)
     lg.pop('VINCITORI 2026-27', None)
+    # (4.2 S7 data: the promotion play-off's winner has its own block, SPAR. PROM. D GIR. A)
     ok = list(cur)[:1] in (['SERIE C GIRONE A'], ['SERIE C GIRONE B']) and last[:1] == ['VINCITORI 2026-27:'] and \
-        list(lg) == ['SERIE D GIRONE A', 'POULE SCUDETTO SERIE D'] and lg.get('SERIE D GIRONE A') == 'LIGORNA' and \
+        list(lg) in (['SERIE D GIRONE A', 'POULE SCUDETTO SERIE D'],
+                     ['SERIE D GIRONE A', 'SPAR. PROM. D GIR. A', 'POULE SCUDETTO SERIE D']) and \
+        lg.get('SERIE D GIRONE A') == 'LIGORNA' and \
+        lg.get('SPAR. PROM. D GIR. A', 'LIGORNA') == 'LIGORNA' and \
         lg.get('POULE SCUDETTO SERIE D') not in (None, '', 'IN CORSO', 'DA GIOCARE')
     return ok, f'page {title!r} {cur}; last season {last[:1]} {lg}'
 

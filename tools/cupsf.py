@@ -82,10 +82,12 @@ def dt_bytes(pk, lfile):
 
 def table(world):
     """CF_TAB bytes of a world (gplay.c), or None (no cups to follow)."""
-    cups, dts = [], []
+    cups, dts, twins = [], [], []
     for pk in mkseason.packs():
         if pk.world != world:
             continue
+        if pk.league and len(pk.league_files()) == 2:   # (4.2 rc4 cf_italy: a league over two team files - S7 Italy 102 /
+            twins.append(tuple(pk.league_files()))     #  144 - gplay.c cf_cap_c keeps the twin of CF's file in CB)
         for f in (pk.league_files() if pk.league else [None]):   # (S7: each league file its own dt)
             cs, lfile = pack_cups(pk, f)
             if not cs:
@@ -100,7 +102,8 @@ def table(world):
     for cid, n, gs, di in cups:
         out += bytes((cid, n, len(gs), di)) + b''.join(bytes(g) for g in gs)
     out += bytes((len(dts),)) + b''.join(dts)
-    print(f'exe: cups follow promotions (world {world}): {len(cups)} cups, {len(dts)} league files')
+    out += bytes((len(twins),)) + b''.join(bytes(t) for t in twins)   # (after the dts: db n, n x (db file, db file))
+    print(f'exe: cups follow promotions (world {world}): {len(cups)} cups, {len(dts)} league files, twins {twins}')
     return bytes(out)
 
 

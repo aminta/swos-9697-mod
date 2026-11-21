@@ -12,7 +12,8 @@ Shape: CF_TAB with two dts - file 102 (divisions 0 A, 1 B, 2 C: levels 0, 1, 2; 
   sc_rank (C places) and the 144 places still read;
 - an old save (CB zeroed after the captures, CF kept): the file's order, as before;
 - not last season (CF season + 1 != the cup's season): the file's order;
-- a third file in the captures: skipped (CB keeps the second)."""
+- other leagues' files captured before 102 (the season end captures every league: England 101 first in World 2026-27):
+  skipped - CB keeps the TWIN of CF's file (CF_TAB's twins, 102 / 144); a CF_TAB without twins: CB never filled."""
 import ctypes
 import os
 import struct
@@ -40,7 +41,7 @@ def _cftab():
     lv_d = [3] + [7] * 15
     pd = [(o, 0) for o in range(6)]
     dtd = struct.pack('<HBH', 256, FD, len(pd)) + bytes(lv_d) + b''.join(bytes(p) for p in pd)
-    return bytes((1, 0, 1)) + cup + bytes((2,)) + dta + dtd
+    return bytes((1, 0, 1)) + cup + bytes((2,)) + dta + dtd + bytes((1, FA, FD))     # (twins: 102 / 144)
 
 
 def _diy(name, f, ords):
@@ -59,18 +60,20 @@ def _lib(d, text, tag):
     return L
 
 
-def _cap(L, keep, season=5, third=False, old=False):
+def _cap(L, keep, season=5, third=False, old=False, tab=True):
     for n, z in (('CF_ST', 260), ('CB_ST', 258)):
         try:
             ctypes.memset(ctypes.addressof(ctypes.c_uint8.in_dll(L, n)), 0, z)
         except ValueError:
             pass                                    # (the reference has no CB_ST)
-    ctypes.c_void_p.in_dll(L, 'CF_TAB').value = ctypes.addressof(keep['tab'])
+    if tab:
+        ctypes.c_void_p.in_dll(L, 'CF_TAB').value = ctypes.addressof(keep['tab'])
     ctypes.c_void_p.in_dll(L, 'GP_SLT').value = ctypes.addressof(keep['slt'])
     ctypes.c_uint16.in_dll(L, 'GP_MGR').value = FD | 3 << 8           # (a Serie D career club)
     L.cf_cap_c(0, keep['d'], season)
-    if third:
-        L.cf_cap_c(0, keep['x'], season)
+    L.cf_cap_c(0, keep['x'], season)                 # (another country's league between them: the season end captures
+    if third:                                        #  every league - World 2026-27: England 101 before Italy 102)
+        L.cf_cap_c(0, keep['x2'], season)
     L.cf_cap_c(2, keep['c'], season)
     L.cf_cap_c(0, keep['a'], season)
     if old:                                          # (a save from before 'CB': the item zeroed at load)
@@ -85,8 +88,8 @@ def _list(L, season):
 
 def test_cfitaly():
     d = tempfile.mkdtemp(prefix='cfit')
-    keep = {'tab': ctypes.create_string_buffer(_cftab(), 256), 'slt': ctypes.create_string_buffer(4096),
-            'd': _diy(b'SERIE D', FD, D_TABLE), 'c': _diy(b'SERIE C', FA, C_TABLE), 'x': _diy(b'OTHER', FX, (1, 2)),
+    keep = {'tab': ctypes.create_string_buffer(_cftab(), 256), 'tab0': ctypes.create_string_buffer(_cftab()[:-3], 256), 'slt': ctypes.create_string_buffer(4096),
+            'd': _diy(b'SERIE D', FD, D_TABLE), 'c': _diy(b'SERIE C', FA, C_TABLE), 'x': _diy(b'OTHER', FX, (1, 2)), 'x2': _diy(b'OTHER2', FX + 1, (3, 4)),
             'a': _diy(b'SERIE A', FA, A_TABLE)}
     errs, notes = [], []
     cur = open(os.path.join(C1.TOOLS, 'gplay.c')).read()
@@ -137,7 +140,13 @@ def test_cfitaly():
         errs.append('season 7 (places of season 5): not the file order')
     _cap(L, keep, third=True)
     cb = ctypes.string_at(ctypes.addressof(ctypes.c_uint8.in_dll(L, 'CB_ST')), 258)
-    if cb[1] != FX or _list(L, 6) != list(C_ORDS):
-        errs.append(f'third file: CB file {cb[1]} (want the second seen, {FX}), C cup {_list(L, 6)} (want the file order)')
+    if cb[1] != FA or _list(L, 6) != list(C_TABLE):
+        errs.append(f'two other files first: CB file {cb[1]} (want the twin {FA}), C cup {_list(L, 6)} (want the C table)')
+    ctypes.c_void_p.in_dll(L, 'CF_TAB').value = ctypes.addressof(keep['tab0'])
+    _cap(L, keep, tab=False)
+    if _list(L, 6) != list(C_ORDS):
+        errs.append('a CF_TAB without twins: CB filled (want the file order, as before)')
     return not errs, '; '.join(errs) or ('; '.join(notes) + '; fixed: C cup = last season\'s C table, CF_ST identical '
-                                         '(144), CB_ST 102 places, sc_rank / sc_place read the Serie A champion from CB (red: 9); old save / stale season / third file -> the file order')
+                                         '(144), CB_ST 102 places, sc_rank / sc_place read the Serie A champion from CB (red: 9); '
+                                         'other leagues captured between them skipped (twins: CB = 102); old save / stale '
+                                         'season / no twins -> the file order')

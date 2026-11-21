@@ -4631,7 +4631,8 @@ void ri_cache(u8 *recs, int n, int file, const u8 *orig, const u8 *pool, int fi,
    rule 11's check (gp_notin -> cf_member_c) compute the same list.
    CF_TAB: db world, db first season, db cups; per cup: db id, db n, db groups, db dt, groups x (db division, db n_d,
    db b_d); then db dts; per dt: dw global base, db file, dw m, 16 x db the divisions' levels, m x (db ordinal, db base
-   division). CF_ST.rank[ordinal] = place (1..31) | level of last season's division << 5; 0 = none. */
+   division); then (4.2 rc4 cf_italy) db twins; per twin db file, db file (a league over two team files, S7 Italy 102 / 144).
+   CF_ST.rank[ordinal] = place (1..31) | level of last season's division << 5; 0 = none. */
 const u8 *CF_TAB;
 static const u8 *cf_cup(int id, const u8 **dtp) {
     const u8 *t = CF_TAB, *c;
@@ -4655,7 +4656,8 @@ struct cf_state { u16 magic; u8 season, file; u8 rank[256]; };
 struct cf_state CF_ST;
 /* 4.2 rc4 (cf_italy, MC 21/11): the places of a SECOND league file (S7 Italy: 102 = A/B/C, 144 = D; a Serie D career
    captured only 144, so the first Coppa Italia Serie C after D -> C had no places). Engine item 'CB'; 'CF' unchanged
-   (old saves load as before: CB zeroed = no second file). season = the capture's season + 1 (0 = none), file. */
+   (old saves load as before: CB zeroed = no second file). season = the capture's season + 1 (0 = none), file = the twin
+   of CF's file (CF_TAB's twins: the other team file of the same league; the season end captures every league's table). */
 struct cb_state { u8 season, file; u8 rank[256]; };
 struct cb_state CB_ST;
 const u32 CB_STSZ = sizeof(struct cb_state);
@@ -4700,6 +4702,19 @@ static const u8 *cf_dt(int file) {      /* the league file's dt */
     return 0;
 }
 const u32 CF_STSZ = sizeof(struct cf_state);
+static int cf_twin(int file) {          /* (rc4 cf_italy: the other team file of file's league, CF_TAB's twins; -1 none) */
+    const u8 *t = CF_TAB, *c;
+    if (!t) return -1;
+    c = t + 3;
+    for (int k = 0; k < t[2]; k++) c += 4 + 3 * c[2];
+    const u8 *d = c + 1;
+    for (int k = 0; k < c[0]; k++) d += 21 + 2 * (d[3] | d[4] << 8);
+    for (int k = 0; k < d[0]; k++) {
+        if (d[1 + 2 * k] == file) return d[2 + 2 * k];
+        if (d[2 + 2 * k] == file) return d[1 + 2 * k];
+    }
+    return -1;
+}
 enum { CF_MAGIC = 0x4643 };
 void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final table (DIY: +31h clubs, +6Dh the places'
                                                            row offsets, +12Dh the rows' team words) */
@@ -4731,7 +4746,9 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
         }
         int f = w & 0xFF;
         u8 *rk = CF_ST.rank;
-        if (f != CF_ST.file) {          /* (rc4 cf_italy: the second file seen this season -> CB_ST; a third: skipped) */
+        if (f != CF_ST.file) {          /* (rc4 cf_italy: the twin of CF's file - the other team file of its league,
+                                           CF_TAB's twins - -> CB_ST; any other file: skipped, as before) */
+            if (f != cf_twin(CF_ST.file)) continue;
             if (CB_ST.season != (u8)(season + 1)) {
                 for (int i = 0; i < 256; i++) CB_ST.rank[i] = 0;
                 CB_ST.season = (u8)(season + 1); CB_ST.file = (u8)f;

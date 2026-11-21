@@ -2415,15 +2415,24 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     mov edx, [STAGE + 1739Ch]           ; the competitions (careerFileBuffer + 0xF77E .. + 0x16ABC: the 5 buffers of
     mov esi, CAREER + 0F77Eh            ; ProcessCareerFile's arrayOfPointers) keep each club as an offset from it:
     mov ecx, 16ABCh - 0F77Eh            ; careerTeam's (the player's club) is negative and moves with the cache ->
-.ct:                                    ; any dword that the save's selTeamsPtr turns into careerTeam (same page
-    mov eax, [esi]                      ; offset, obj2 bases at most 1 MB apart; no cached record's offset is one)
-    add eax, edx                        ; = careerTeam - the cache now
-    sub eax, CAREER + 0DB80h
-    test eax, 0FFFh
-    jnz .cn
+.ct:                                    ; any dword that the save's selTeamsPtr turns into careerTeam
+    mov eax, [esi]                      ; = careerTeam - the cache now. 4.2 rc3 (MC 21/11, Saric's STK84.CAR): EXACT
+    cmp eax, CT_OLD                     ; matches first, whatever address DOS gave obj2 when the save was written:
+    je .cr                              ; careerTeam - g_selectedTeams (3.x, game-cache 4.x, 4.2's canonical form) and
+%assign CTI 0                           ; careerTeam - the big cache of the shipped 4.x layouts
+%rep CT_BIGN
+    cmp eax, CT_BIG %+ CTI
+    je .cr
+%assign CTI CTI + 1
+%endrep
+    add eax, edx                        ; then the old test (same page offset, obj2 bases at most 1 MB apart; no cached
+    sub eax, CAREER + 0DB80h            ; record's offset is one). It assumed obj2 page-aligned: Saric's DOSBox had it
+    test eax, 0FFFh                     ; at 0x2CEEB6, the 3 careerTeam refs stayed unrelocated on the big cache ->
+    jnz .cn                             ; team 0 -> FindTeamInCache's int 3 at obj1+0x17064
     add eax, 100000h
     cmp eax, 200000h
     jae .cn
+.cr:
     mov eax, CAREER + 0DB80h
     sub eax, [SELBASEV]
     mov [esi], eax
@@ -2862,6 +2871,16 @@ def patch_tails(p, at, nasmcave):
                 'SELBASEV': (1, t['selbasev']), 'ROOMV': (1, t['roomv']), 'TC_LOADERR': (1, t['tc_loaderr']), 'WSEL': (1, LABELS['WSEL']),
                 'WMAP': (1, LABELS['WMAP']), 'WTAB': (1, LABELS['WTAB']), 'REC': (0, REC),
                 'BIGC': (0, BIGC), 'BIGC_AT': (0, BIGC_AT), 'UPGRADE_N': (0, UPGRADE_N)})
+    # 4.2 rc3 (MC 21/11): careerTeam's offset as the competitions keep it, exact per layout (w_loadcopy .ct): from the
+    # game's cache (the same in every exe: both are the game's obj2 variables) and from the big cache of each shipped
+    # 4.x layout (obj2+0x131000 in every 4.x release build log) plus this build's
+    ct = t['CAREER'][1] + 0xDB80
+    assert t['CAREER'][0] == 2 and hs['old'] - ct == 0x9831, (t['CAREER'], hex(hs['old']))
+    sym['CT_OLD'] = (0, (ct - hs['old']) & 0xFFFFFFFF)
+    bigs = sorted({0x131000, b + B_SEL})
+    sym['CT_BIGN'] = (0, len(bigs))
+    for i, nb in enumerate(bigs):
+        sym[f'CT_BIG{i}'] = (0, (ct - nb) & 0xFFFFFFFF)
     sym['W_LPW'] = (1, LABELS['w_lpw']) if 'w_lpw' in LABELS else (0, 0)
     sym['LPW_ON'] = (0, int('w_lpw' in LABELS))
     sym['NS_ON'] = (0, int('w_ns_set' in LABELS))

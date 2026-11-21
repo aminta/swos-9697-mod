@@ -181,6 +181,47 @@ def test_tc1b():
         else:
             notes.append(f'refusal obj1+{calls[0]:#x} -> obj1+{tgt:#x}')
 
+    # 4.2 rc3 (MC 21/11, Saric's STK84.CAR): a save written with obj2 at an address that is NOT page-aligned relative
+    # to this run's (his DOSBox: obj2 at 0x2CEEB6) - its careerTeam dwords must still move to the big cache. (a) a
+    # game-cache save (careerTeam - g_selectedTeams), (b) a 4.x big-cache save (careerTeam - NEWSEL); a record offset
+    # stays. Before rc3 the .ct page test left them -> team 0 -> FindTeamInCache's int 3 (obj1+0x17064)
+    ctv = car + CT
+    spots = [COMP[0] + 0x387, COMP[0] + 0x171B, COMP[0] + 0x6BBF]       # STK84: fixed+0xFB05 / 0x10E99 / 0x1633D
+    recat = COMP[0] + 0x1787                                             # STK84: fixed+0x10F05 = record 90 (Sparta)
+    for label, saved_sel, ctval in (('game-cache save', old - 0xA114A, ctv - old),
+                                    ('4.x big-cache save', new - 0xA114A, ctv - new)):
+        m.w8(sea, 0)
+        m.w8(tr.B1 + m.code['TC_LONG'][1], 0)
+        m.uc.mem_write(stage, bytes(fixed))
+        for o in spots:
+            m.w32(stage + o, ctval)
+        m.w32(stage + recat, 90 * 684)
+        m.w16(stage + NUMSEL_OFF, 95)
+        m.w32(stage + SELPTR_OFF, saved_sel)
+        m.w32(d1, fixed + 95 * 684)
+        m.w32(sbv, old)
+        m.call('w_loadcopy')
+        got = [m.u32(car + o) for o in spots] + [m.u32(car + recat)]
+        want = [(ctv - new) & 0xffffffff] * 3 + [90 * 684]
+        if got != want or m.u32(sbv) != new:
+            bad.append(f'w_loadcopy {label} from a non-page-aligned obj2 (selTeamsPtr {saved_sel:#x}): careerTeam dwords '
+                       f'+ record 90 = {[hex(x) for x in got]} want {[hex(x) for x in want]}, SELBASEV {m.u32(sbv):#x}')
+    stk = os.environ.get('HT_STK84', os.path.expanduser('~/swos-mod/internal/user-reports/ante-20261120/STK84.CAR'))
+    if os.path.exists(stk):                     # the real file, as Saric's DOSBox wrote it
+        f = open(stk, 'rb').read()
+        m.uc.mem_write(stage, f)
+        m.w32(d1, len(f))
+        m.w32(sbv, old)
+        m.call('w_loadcopy')
+        got = [m.u32(car + o) for o in (0xFB05, 0x10E99, 0x1633D, 0x10F05)]
+        want = [(ctv - new) & 0xffffffff] * 3 + [90 * 684]
+        if m.rd(err, 1)[0] or got != want:
+            bad.append(f'w_loadcopy STK84.CAR: TC_LOADERR {m.rd(err, 1)[0]}, dwords {[hex(x) for x in got]} want '
+                       f'{[hex(x) for x in want]}')
+        else:
+            notes.append('STK84.CAR relocated')
+    notes.append('non-aligned obj2 saves (game cache + 4.x big cache)')
+
     # w_save_tail: a 1996-97 career (world 0: w_big ZF = 1) in the big cache -> the canonical file from the stage
     m.w32(sbv, new)
     m.w32(sptr, new)

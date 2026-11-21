@@ -25487,7 +25487,7 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     base = {pk.where[k][1]: pk.division[k] for k in pk.league_clubs if pk.where[k][0] == lfile}
     names = {pk.where[k][1]: pk.clubs[k]['name'] for k in pk.league_clubs if pk.where[k][0] == lfile}
     club = team.split(',')[-1]
-    me = next(o for o, n in names.items() if n == club)
+    me = next((o for o, n in names.items() if n == club), None)    # (S7: the career club may be in another league file)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     br = os.environ.get('CF_BRANCH')                   # (a base commit for the FAIL-before run)
     exe = os.environ.get('CF_BUILD') or build('world_cf_' + name + ('_' + br if br else ''), env={
@@ -25516,8 +25516,15 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
         d = s.result.read(s.result.base2, 0x100000)
         sl = bytes(s.result.obj2(slt + gbase, 256)) if slt is not None else bytes(256)
         cfs = bytes(s.result.obj2(gp_cf(exe), 260)) if slt is not None else bytes(260)
+        selw = struct.unpack('<H', bytes(s.result.obj2(fr_career_sites(exe)[1], 2)))[0] if slt is not None else 0xFFFF
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+    if me is None or (selw & 0xFF == lfile and selw >> 8 != me):
+        # (S7: a club crossing league files takes over a row of the other file - N7 registry swap, s7swap.c - and its
+        # season-2 word is that row's: selTeamNumber. The pack's name / word of the club no longer names it.)
+        check(selw & 0xFF == lfile, f'{club}: selTeamNumber {selw:#06x} is not a word of the cup\'s league file {lfile}',
+              errs)
+        me = selw >> 8
     n = fmt[1]
     hits = [i for i in range(len(d) - 0x443) if d[i + 0x2D] == cid and d[i + 0x31:i + 0x33] == struct.pack('<H', n)
             and d[i + 0x24D] == lfile]

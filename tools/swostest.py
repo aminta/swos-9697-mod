@@ -22290,8 +22290,10 @@ def world_s3_oldsave_c():
         from le import LE
         at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
         return f'{at:x}:30:3072'
-    old_exe = build('world_s3c_old_h2', env={'SEASON_PACKS': packs(h2), 'DPLAY_FORCE': '105'}, lang=UI)
-    new_exe = build('world_s3c_new_s3c', env={'SEASON_PACKS': packs(s3c), 'DPLAY_FORCE': '105'}, lang=UI)
+    # (the old exe: FRND=0 as a real 4.1 save; with friendlies the K_FR fix lets dplay play a play-off without the career
+    # club in ONE FINISCI STAGIONE step, so DP_ST kind 3 is seen at one stop only and no mid-play-off save happens)
+    old_exe = build('world_s3c_old_h2_g5f0', env={'SEASON_PACKS': packs(h2), 'DPLAY_FORCE': '105', 'GPLAY_FORCE': '5', 'FRND': '0'}, lang=UI)
+    new_exe = build('world_s3c_new_s3c_g5', env={'SEASON_PACKS': packs(s3c), 'DPLAY_FORCE': '105', 'GPLAY_FORCE': '5'}, lang=UI)
     log_at, st_at, log_n, st_n = gp_ptrs(new_exe)
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,' + serie_c_mid(old_exe)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE',

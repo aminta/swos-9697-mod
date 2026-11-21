@@ -25521,6 +25521,15 @@ def gp_cf(exe):
     return struct.unpack_from('<I', d1, k + 8)[0]
 
 
+def gp_cb(exe):
+    """obj2 offset of gplay's CB_ST (4.2 rc4 cf_italy: a second league file's places, 'CBSTPTR'), None before it."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    k = d1.find(b'CBSTPTR\0')
+    return struct.unpack_from('<I', d1, k + 8)[0] if k >= 0 else None
+
+
 def cf_follow(name, team, pack, cid, gpforce, career_div):
     """World 2026-27 cups follow promotions (cupsf.py, gplay.c cf_list_c): a new career at team (its last path entry)
     forced to place gpforce (GPLAY_FORCE) in its division, season 1 played, the next season saved and reloaded:
@@ -25569,6 +25578,8 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
         d = s.result.read(s.result.base2, 0x100000)
         sl = bytes(s.result.obj2(slt + gbase, 256)) if slt is not None else bytes(256)
         cfs = bytes(s.result.obj2(gp_cf(exe), 260)) if slt is not None else bytes(260)
+        cbo = gp_cb(exe) if slt is not None else None
+        cbs = bytes(s.result.obj2(cbo, 258)) if cbo is not None else bytes(258)
         selw = struct.unpack('<H', bytes(s.result.obj2(fr_career_sites(exe)[1], 2)))[0] if slt is not None else 0xFFFF
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
@@ -25599,9 +25610,12 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     check(got == want, f'divisions (entrants, byes) {got} (want the real format {want})', errs)
     moved = [names[w >> 8] for w in words if cur(w >> 8) != base[w >> 8]]
     magic, cseas, cfile = struct.unpack_from('<HBB', cfs, 0)
-    check(magic == 0x4643 and cfile == lfile, f'CF_ST {magic:#x} season {cseas} file {cfile} (want the league file {lfile})',
-          errs)
     rank = cfs[4:260]
+    if magic == 0x4643 and cfile != lfile and cbs[0] == (cseas + 1) & 0xFF and cbs[1] == lfile:
+        rank, cfile = cbs[2:258], cbs[1]            # (4.2 rc4 cf_italy: the cup's file in CB_ST - a Serie D career captures
+                                                    #  144 first; gplay.c cf_ranks reads the same slot)
+    check(magic == 0x4643 and cfile == lfile, f'CF_ST {magic:#x} season {cseas} file {cfile} / CB_ST season {cbs[0]} file '
+                                              f'{cbs[1]} (want the league file {lfile} in one of them)', errs)
     lvl = cupsf.levels(pk)
 
     def key(o, dv):                                 # (gplay.c cf_build: CF_SEED, the place, the ordinal)

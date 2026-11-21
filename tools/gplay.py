@@ -2349,6 +2349,8 @@ cf_mem:                                 ; gp_notin (rule 11): esi = a cup's defi
 CF_RES: dd 0
     db 'CFSTPTR', 0                     ; (the harness: cupsf's CF_ST in obj2, gp_cf)
     dd CF_ST_
+    db 'CBSTPTR', 0                     ; (4.2 rc4 cf_italy: the second file's places CB_ST, gp_cf)
+    dd CB_ST_
 
 cf_cap:                                 ; gp_cap (the season end, every league division, D7R = the division, DIY = its
     pushad                              ; final table): gplay.c cf_cap_c keeps the places of this world's clubs
@@ -3612,6 +3614,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
                                 '    call GP_CAP_NEXT\n    pushad\n    call cf_cap\n    mov edx, [A4R]\n'
                                 '    call gp_find\n')
     symbols['CF_ST_'] = syms['CF_ST']
+    symbols['CB_ST_'] = syms['CB_ST']
     asm = (nasmcave.sub(asm_main, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15

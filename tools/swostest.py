@@ -35973,6 +35973,20 @@ def world_winners_bank():
     return not errs, '; '.join(errs + info)
 
 
+def clear_president_notes(s, tries=5):
+    """4.2 rc: the career's random trial-player letter ('NOTA DEL PRESIDENTE ...', button CONTINUA) can sit on the screen
+    when a scenario looks up a menu entry (the 4.2 path runs through more weeks); press CONTINUA until it is gone and
+    return the screen (a lookup like s.screen().find('ESCI') made before walk() cannot be rescued inside walk())"""
+    scr = s.screen()
+    for _ in range(tries):
+        if not any('NOTA DEL PRESIDENTE' in t for t in scr.texts()):
+            break
+        if press(s, scr, 'CONTINUA', wait=3) is None:
+            raise AssertionError(f'president note: CONTINUA not pressed ({scr.texts()[:16]})')
+        scr = s.screen()
+    return scr
+
+
 @scenario
 def world_titlefit():
     """4.0.1 match titles in px (rnames rn_tfit / rn_tend: the 304-px bar, PXMAX 302, was 40 characters): a 1984-85
@@ -36003,8 +36017,8 @@ def world_titlefit():
         check(t0 == ' '.join(t0.split()), f'cup title {t0!r}: a leading / double space', errs)
         info.append(f'cup: {t0!r} ({len(t0)})')
         s.poke(s.result.base2 + diy + 4, list(b'W' * 34 + b'\0'))
-        walk(s, s.screen().find('ESCI', exact=True), 3)
-        walk(s, s.screen().find('PARTITA', exact=True), 3)
+        walk(s, clear_president_notes(s).find('ESCI', exact=True), 3)
+        walk(s, clear_president_notes(s).find('PARTITA', exact=True), 3)
         t1 = s.screen().entries[0][1]
         s.shot('poked')
         check(t1 == 'W' * 34 + ' ' + ' '.join(rest) or t1.startswith('W' * 34 + ' '),

@@ -332,6 +332,10 @@ def patch_exe(src, dst, remap, lang='it'):
         if mkseason.second_table()[0]:
             engine.save_item('BQ', gp_mod.BQ_SIZE, world_only=True)   # 4.0.6 may each B team go up (SEC_BQ, zones)
         engine.after_load('gp_sync')
+        if __import__('frnd').on():                # rc2 (MC 21/11): the friendlies' FR_ST (in SC_ST, world-only) also as
+            engine.save_item('FS', 12)                 # 'FS' in every world - a 1996-97 career reloaded in its preseason
+            engine.before_save('fr_presave')           # played the installed friendly natively (frstep.c FR_SV)
+            engine.after_load('fr_postload')
         gp_mod.GS_ON[0] = False
         if any(t[2] in gp_mod.T2_SPECS for t in gp_tabs):   # (a group contest played: the early tables beyond 2)
             engine.save_item('GS', gp_mod.GS_SIZE, world_only=not engine.gplay_tables())

@@ -221,6 +221,22 @@ u32 fr_row(const u8 *row) {             /* GP_PROW (gphooks): ours, else the nex
     return r ? r : FR_NROW ? FR_NROW(row) : 0;
 }
 
+/* rc2 (MC 21/11, the PARMA 96-97 trap): FR_ST lives in SC_ST, a world-only save item - a world-0 (1996-97) career
+   saved FR_ST nowhere, so a reload during the preseason played the installed friendly natively (a draw -> the game's
+   replay mark -> no replay row -> int3). Its 12 bytes now also travel as the engine item 'FS' (any world): copied here
+   before every save, back after every load (after the items are read and the missing ones - 'SC' in world 0 - zeroed).
+   ko[0] (GP, world-only too) is not saved in world 0: fr_step's next call sees no live K_FR and builds friendly k
+   again (ko_one + the install), as at its turn. A save without 'FS' (4.1) loads FR_SV zeroed: no friendlies. */
+FR_DATA u8 FR_SV[FR_SZ];
+
+void fr_presave(void) {                 /* engine before_save */
+    for (int i = 0; i < FR_SZ; i++) FR_SV[i] = FR_ST[i];
+}
+
+void fr_postload(void) {                /* engine after_load */
+    for (int i = 0; i < FR_SZ; i++) FR_ST[i] = FR_SV[i];
+}
+
 void fr_leg(void) {                     /* gp_rec, every match of ours */
     if (GP_K == 0 && FR_ST[0] == FR_SEASON && *(const u16 *)KO0 == C_MAGIC && KO0[O_KIND] == C_KFR &&
         KO0[O_SEASON] == GP_SEAS) {

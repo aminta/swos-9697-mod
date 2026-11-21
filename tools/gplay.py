@@ -1213,7 +1213,7 @@ gp_draw:                                ; at cseg_2AE97's 'draw -> replay' mark 
     call GP_DRAW_NEXT                   ; dp_draw): a level tie of ours -> the better placed club
     pushad
     call gp_ours
-    jz .x
+    jz .fe
     call gp_decisive
     jz .x
     test byte [D7R], 2                  ; (decided already)
@@ -1229,8 +1229,16 @@ gp_draw:                                ; at cseg_2AE97's 'draw -> replay' mark 
 .x:
     popad
     ret
+.fe:                                    ; rc2 (MC 21/11): a slot-4 one-tie contest of ours (id FEh, ko_one) that gplay no
+    cmp byte [DIY + 2Dh], 0FEh          ; longer holds (a lost ko[0]) never asks the game for a replay - the calendar has
+    jne .x                              ; no replay row for it (the original int3 after the names-table search): a level
+    test byte [D7R], 2                  ; match stands, decided for the home club
+    jnz .x
+    and byte [D7R], 0FEh
+    or byte [D7R], 2
+    jmp .x
 
-gp_rec:                                 ; at cseg_2AE97's end (the match's result), before dplay's dp_rec: a decisive
+gp_rec:                                ; at cseg_2AE97's end (the match's result), before dplay's dp_rec: a decisive
     pushad                              ; match of ours -> its tie's winner (the state)
     call gp_ours
     jz .x

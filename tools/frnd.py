@@ -108,7 +108,7 @@ def patch(p, ssyms, gsyms):
     site, f3d = call_site(p)
     assert p.call_target(1, site) == f3d, ('frnd: InitializeNewSeason\'s call cseg_3D204 already hooked', p.call_target(1, site))
     roots = ['fr_season', 'fr_step', 'fr_row', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG', 'FR_NROW',
-             'FR_CHOOSE', 'FR_AFTER4', 'FR_NAMES']
+             'FR_CHOOSE', 'FR_AFTER4', 'FR_NAMES', 'FR_SV', 'fr_presave', 'fr_postload']
     test = os.environ.get('FRND_TEST') == '1'         # (the friendlies scenarios' builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB,
                                                     #  FR_ROWC. Its own TEST_VAR, never HOSTTEST_SYMS: a syms build = the release
                                                     #  bytes + labels beside them; MC 19/11, hosttest test_syms_bytes)
@@ -150,6 +150,11 @@ def patch(p, ssyms, gsyms):
     except ImportError:
         pass
     p.branch(1, site, 0xE8, 4, lab['fr_seasg'])
+    import engine                       # rc2 (MC 21/11): FR_ST's copy saved in every world (patch.py registers 'FS' and
+    if 'FS' in engine.SAVE_ITEMS:       # its two callbacks with gplay's items; trailer.late binds them)
+        engine.ITEM_AT['FS'] = tuple(syms['FR_SV'][:2])
+        engine.CALL_AT['fr_presave'] = tuple(syms['fr_presave'][:2])
+        engine.CALL_AT['fr_postload'] = tuple(syms['fr_postload'][:2])
     LABELS.clear()
     LABELS.update(syms, **{k: (4, v) for k, v in lab.items()}, FR_ST=ext['FR_ST'], FR_BUF=ssyms['FR_BUF'], site=site,
                   END=(4, end))

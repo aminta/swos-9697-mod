@@ -41110,6 +41110,49 @@ def trhd_whip():
 
 
 
+@scenario
+def friendlies_reload_9697():
+    """4.2 rc2 (Saric-hunt, MC 21/11): the friendlies' state survives a reload in a 1996-97 (world 0) career. rc1 saved SC
+    (which holds FR_ST) world-only: after the season-1 save's reload FR_ST was zero, only friendly 1 (built before the save)
+    was played - natively, its draw trapped at obj1+0x19A62 (the game's own int3 when the filler finds no replay row) - and
+    friendlies 2-4, fee, record were silently lost. A release dir (SWOSTEST_BUILD, with data/FRSS.DAT): a new LAZIO career
+    (FR_TEAM_9697 overrides), 2 seasons; season 1 AND season 2 (after the reload) must show 4 friendly result screens each.
+    rc1: season 2 shows 1 (red); the fixed build 4."""
+    exe = os.environ.get('SWOSTEST_BUILD') or os.environ.get('W8485_BUILD')
+    if not exe or not os.path.exists(os.path.join(exe, 'DATA', 'FRSS.DAT')):
+        return True, 'SKIP: needs a release dir with DATA/FRSS.DAT (SWOSTEST_BUILD=c/RELxx/SWOS)'
+    global W84_HOOK
+    seen = {1: [], 2: []}
+
+    def hook(s, season, scr):
+        if scr is None or season not in seen:
+            return
+        tx = ' '.join(scr.texts())
+        if 'AMICHEVOLE' in tx and '- RISULTATO -' in tx and (not seen[season] or seen[season][-1] != tx):
+            seen[season].append(tx)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_SMALL', 'W8485_NOSACK', 'W8485_FROM', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    old, W84_HOOK = W84_HOOK, hook
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 1996-97', W8485_WNUM='0', W8485_SMALL='1', W8485_NOSACK='1',
+                          W8485_TEAM=os.environ.get('FR_TEAM_9697', 'EUROPA,ITALIA,SERIE A,LAZIO'))
+        for k in ('W8485_FROM', 'W8485_ONE'):
+            os.environ.pop(k, None)
+        ok, msg = world8485()
+    finally:
+        W84_HOOK = old
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, f'world8485: {msg[:200]}', errs)
+    for sn in (1, 2):
+        check(len(seen[sn]) == 4, f'season {sn}: {len(seen[sn])} friendly result screens (want 4; rc1 reloads to 1)', errs)
+    return not errs, '; '.join(errs) or f'4 + 4 friendly result screens (season 2 after the reload)'
+
+
 def main(argv):
     if not argv or argv[0] == 'list':
         for k, f in SCENARIOS.items():

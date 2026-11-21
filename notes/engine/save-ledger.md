@@ -44,6 +44,7 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
 | CF | 260 | gplay (cupsf) | 4.0.1 | the clubs' last-season places |
 | F1 | 248 | gplay | 4.0.5 | the FASE 1 page's table |
 | SC | 204 | supercup | 4.0 | supercups |
+| FS | 12 | frnd (frstep.c FR_SV) | 4.2 rc2 | the friendlies' FR_ST copy, every world (SC is world-only; MC 21/11) |
 | WN | 164 | gplay | 4.0.1 | the WINNERS page's last season |
 | BU | 84 | bteam | 4.0.6 | B-team call-ups |
 | SH | 66 | split | 4.0.1 | head-to-head / keep block |

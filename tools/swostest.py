@@ -20241,7 +20241,7 @@ def serie_c_mid(exe, rank=7):
 
 
 @scenario
-def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw='', fill=False):
+def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw='', fill=False, gforce=''):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
     world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the
     career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
@@ -20254,7 +20254,10 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw='', fill=
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': force}
     if cupw:                                                 # (4.1: the Coppa Italia Serie C winner forced, DPLAY_CUPW)
         env['DPLAY_CUPW'] = cupw
-    exe = build('world_dplay_' + force + ('_w' + cupw if cupw else '') + ('' if UI == 'it' else '_' + UI)
+    if gforce:                                               # (rc4 gate: gplay's tables forced too, GPLAY_FORCE - the
+        env['GPLAY_FORCE'] = gforce                          # club out of gplay's play-out, whose contest comes first)
+    exe = build('world_dplay_' + force + ('_w' + cupw if cupw else '') + ('_g' + gforce if gforce else '')
+                + ('' if UI == 'it' else '_' + UI)
                 + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
                 env=env, lang=UI)                            # (the UI lane's exe: SWOSTEST_UI)                                     # (another snapshot: its own build dir)
     if team.endswith(',*'):                                  # (Serie C cases: the club by strength, serie_c_mid)
@@ -21643,8 +21646,10 @@ def world_dplay_c():
     """The career club's Serie C play-off, played (dplay step 3): as world_dplay_b with DPLAY_FORCE=105 at RENATE
     (Serie C group A, 5th at its league end): the other two groups simulated at once, PLAY-OFF SERIE C (28 clubs) in
     slot 4 - group rounds, national rounds with seeds, Final Four - played to its end; its winner promoted (the
-    season log: kind 3, the 28 clubs in place order, the winner moved up)"""
-    return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,*', fill=True)
+    season log: kind 3, the 28 clubs in place order, the winner moved up). rc4 gate (Regia 21/11): GPLAY_FORCE=5 too -
+    with the release data the club's natural place put it in gplay's group play-out (TRENTO, suite-42rc1-L2), played
+    before dplay, so the play-off was never reached; forced out of it, the K_FR friendly skip in gp_lend showed"""
+    return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,*', fill=True, gforce='5')
 
 
 
@@ -21937,9 +21942,10 @@ def _s3c_exact(case):
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': '105',
            'DPLAY_CUPW': cupw}
-    if cupf:
-        env['DPLAY_CUPF'] = str(cupf)
-    exe = build('world_s3c_x_' + case, env=env, lang=UI)
+    env['GPLAY_FORCE'] = '5'                                 # (rc4 gate, Regia 21/11: gplay's own tables forced too -
+    if cupf:                                                 # with DPLAY_FORCE alone the club's natural place could put it
+        env['DPLAY_CUPF'] = str(cupf)                        # in gplay's group play-out, which gp_lend installs before
+    exe = build('world_s3c_xg_' + case, env=env, lang=UI)   # dplay: no play-off by premise, the K_FR skip masked)
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,' + serie_c_mid(exe)
     import simdraw
     from le import LE

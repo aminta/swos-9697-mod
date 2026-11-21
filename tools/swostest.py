@@ -4685,10 +4685,14 @@ def zones_preseason():
                 walk(s, s.screen().find('ESCI', exact=True), 3)
                 if 'TRASFERIMENTI' in s.screen().texts():
                     break
-            n = [0]
-            def stop(scr):
+            n, fr = [0], [False]
+            def stop(scr):                      # (4.2 friendlies: AMICHEVOLE days before the MLS's first match day
+                if 'AMICHEVOLE' in scr.texts():  # are not league matches - suite-42rc1-L3: 4 friendlies, MLS all 0)
+                    fr[0] = True
                 if 'VISUAL. COMPETIZ.' in scr.texts() and 'TRASFERIMENTI' in scr.texts():
-                    n[0] += 1
+                    if not fr[0]:
+                        n[0] += 1
+                    fr[0] = False
                     return n[0] >= 4
                 return False
             ok, m = advance(s, stop, 300)

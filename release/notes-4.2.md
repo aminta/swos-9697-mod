@@ -137,6 +137,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Winners page (VINCITORI): in the 2026-27 world the last-season page now names the right winner of Serie B and Serie C (and of Serie D when the winner has since moved up). Before, a winner who had left the division could show the name of an unrelated club, or the page was missing altogether in Serie C. It now reads the names from the 2026-27 world's own clubs.
 - Leagues split into groups (Serie C, Serie D): the winners page showed the same winner for every group, the first group's. A club in group B saw group A's winner. Now every club sees the winner of its own group. In a career saved with an earlier version, that line appears from the end of the next season.
 
+#### Coppa Italia Serie C after promotion from Serie D
+- In the first season after your club went up from Serie D, the Coppa Italia Serie C took the Serie C clubs in the order of the game's team file. Now it seeds them by last season's places, also for the clubs that came up from Serie D, as it already did in every other season. A career saved with an earlier version gets this from its next season end.
+
 #### Malta's title decider
 - Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
 
@@ -302,6 +305,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Pagina dei vincitori: il vincitore della stagione scorsa di Serie B, C e D
 - Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
 - Campionati a gironi (Serie C, Serie D): la pagina dei vincitori mostrava a tutti il vincitore del primo girone, e una squadra del girone B vedeva quello del girone A. Ora ogni squadra vede il vincitore del suo girone. In una carriera salvata con una versione precedente, la riga compare dalla fine della stagione successiva.
+
+#### Coppa Italia Serie C dopo la promozione dalla Serie D
+- Nella prima stagione dopo la promozione della tua squadra dalla Serie D, la Coppa Italia Serie C prendeva le squadre di Serie C nell'ordine del file delle squadre del gioco. Ora le ordina secondo i piazzamenti della stagione prima, anche per le squadre salite dalla Serie D, come già faceva in tutte le altre stagioni. Una carriera salvata con una versione precedente lo avrà dalla fine della stagione successiva.
 
 #### Spareggio per il titolo a Malta
 - Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.

@@ -86,8 +86,12 @@ def table(world):
     for pk in mkseason.packs():
         if pk.world != world:
             continue
-        if pk.league and len(pk.league_files()) == 2:   # (4.2 rc4 cf_italy: a league over two team files - S7 Italy 102 /
-            twins.append(tuple(pk.league_files()))     #  144 - gplay.c cf_cap_c keeps the twin of CF's file in CB)
+        lfs = list(pk.league_files()) if pk.league else []
+        if len(lfs) > 2:                               # (MC 22/11: CB holds ONE twin - a league over 3+ files is refused)
+            raise mkseason.PackError(f"{pk.meta['id']}: league over team files {lfs}: cupsf twins hold two (cf_italy CB)")
+        if len(lfs) == 2:                              # (4.2 rc4 cf_italy: a league over two team files - from the pack's
+            twins.append(tuple(lfs))                   #  data, S7 Italy 102 / 144 - gplay.c cf_cap_c keeps the twin of
+                                                       #  CF's file in CB)
         for f in (pk.league_files() if pk.league else [None]):   # (S7: each league file its own dt)
             cs, lfile = pack_cups(pk, f)
             if not cs:
@@ -95,6 +99,9 @@ def table(world):
             dts.append(dt_bytes(pk, lfile))
             for cid, n, gs in cs:
                 cups.append((cid, n, gs, len(dts) - 1))
+    seen = [f for t in twins for f in t]
+    if len(seen) != len(set(seen)):                    # (every two-file league once; a file in two twins: refused)
+        raise mkseason.PackError(f'cupsf: a team file in two twins {twins} (world {world})')
     if not cups:
         return None
     year = globals()['year'](world) - 1900

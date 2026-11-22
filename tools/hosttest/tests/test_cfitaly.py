@@ -150,3 +150,51 @@ def test_cfitaly():
                                          '(144), CB_ST 102 places, sc_rank / sc_place read the Serie A champion from CB (red: 9); '
                                          'other leagues captured between them skipped (twins: CB = 102); old save / stale '
                                          'season / no twins -> the file order')
+
+
+def test_cfitaly_twins():
+    """cupsf.table's twins come from the packs' data (MC 22/11): every league over two team files once, in pack order;
+    a league over 3+ files and a file in two twins refused (mkseason.PackError); one-file leagues add none. Fake packs
+    (cupsf.pack_cups / dt_bytes stubbed: the twins only)."""
+    import sys
+    sys.path.insert(0, C1.TOOLS)
+    import cupsf
+    import mkseason
+
+    class P:
+        def __init__(self, i, files, world=5):
+            self.meta, self.world, self.league, self._f = {'id': i}, world, {'x': 1}, files
+
+        def league_files(self):
+            return self._f
+    saved = (mkseason.packs, cupsf.pack_cups, cupsf.dt_bytes, cupsf.year)
+    cupsf.pack_cups = lambda pk, f: ([(0x31, 2, [(0, 2, 0)])], f)
+    cupsf.dt_bytes = lambda pk, f: bytes((0, 0, f, 0, 0)) + bytes(16)
+    cupsf.year = lambda w: 2026
+    errs = []
+    try:
+        def tw(packs):
+            mkseason.packs = lambda: packs
+            t = cupsf.table(5)
+            c = t[3:]
+            for _ in range(t[2]):
+                c = c[4 + 3 * c[2]:]
+            d = c[1:]
+            for _ in range(c[0]):
+                d = d[21 + 2 * (d[3] | d[4] << 8):]
+            return [(d[1 + 2 * k], d[2 + 2 * k]) for k in range(d[0])]
+        got = tw([P('eng', [101]), P('ita', [102, 144]), P('esp', [103, 150]), P('other', [104], world=4)])
+        if got != [(102, 144), (103, 150)]:
+            errs.append(f'two two-file leagues: twins {got}')
+        if tw([P('eng', [101])]) != []:
+            errs.append('one-file leagues: twins not empty')
+        for bad, why in (([P('x', [102, 144, 145])], '3 files'), ([P('a', [102, 144]), P('b', [144, 150])], 'file in two twins')):
+            try:
+                tw(bad)
+                errs.append(f'{why}: not refused')
+            except mkseason.PackError:
+                pass
+    finally:
+        mkseason.packs, cupsf.pack_cups, cupsf.dt_bytes, cupsf.year = saved
+    return not errs, '; '.join(errs) or ('twins from the packs: two two-file leagues -> both once in pack order, other '
+                                         'worlds / one-file leagues none; 3 files and a file in two twins refused')

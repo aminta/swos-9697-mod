@@ -528,7 +528,9 @@ def patch(p, cave, items, tails=False):
         floor = tcache.TC_FLOOR_FP if any(e[0] == 'FP' for e in en) else tcache.TC_FLOOR   # career saved at the floor by
         assert tc_cap >= floor, (f'TC_CAP {tc_cap} < TC_FLOOR {floor}: a trailer item grew past the big cache\'s save '
                                  f'room (main {block} + EN {en_block}); find room elsewhere (CONVENTIONS 26)')
-        print(f'exe: big cache save room: {careerworld.SEL_ROOM - tc_cap * TEAM_SIZE - block - en_block} B left '
+        room = careerworld.SEL_ROOM - tc_cap * TEAM_SIZE - block - en_block
+        assert room >= 0, f'big cache save room {room} B at TC_CAP {tc_cap} (main {block}, EN {en_block})'   # (MC 22/11:
+        print(f'exe: big cache save room: {room} B left '          # explicit; 4.2 rc4 floor 21 B at 155, save-ledger.md)
               f'at TC_CAP {tc_cap} teams (main {block}, EN {en_block})')
     defaults = b''.join(p.get(1, off, n) for off, n in items)
     bal = -(sa.MARK3 & 0xff) - (sa.MARK3 >> 8) & 0xff

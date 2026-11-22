@@ -5120,6 +5120,12 @@ def world8485():
                     press(s, s.screen(), 'CONTINUA')
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'season {season}: no SALVA CARRIERA on {s.screen()}'
+                if os.environ.get('W8485_ROOMAT'):     # 4.2 rc4 cf_italy (MC 22/11, world_cb_room155): ROOMV as with
+                    rv, ns, tgt, dl = (int(x, 0) for x in os.environ['W8485_ROOMAT'].split(':'))   # tgt cached teams
+                    n = struct.unpack('<H', s.result.obj2(ns, 2))[0]                              # (the save budget
+                    cur = struct.unpack('<I', s.result.read(s.result.base1 + rv, 4))[0]          # at TC_CAP), minus
+                    s.poke(s.result.base1 + rv, struct.pack('<I', cur - (tgt - n) * 684 - dl))   # dl bytes (the twin)
+                    s.log.append(f'ROOMAT numsel {n} ROOMV {cur} -> {cur - (tgt - n) * 684 - dl} (as {tgt} cached, -{dl})')
                 s.send(name_entry(nm) + ' dump:3')
                 return True, f'season {season}: saved {os.path.join(s.run, "SWOS", nm + ".CAR")}'
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
@@ -25611,6 +25617,9 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     moved = [names[w >> 8] for w in words if cur(w >> 8) != base[w >> 8]]
     magic, cseas, cfile = struct.unpack_from('<HBB', cfs, 0)
     rank = cfs[4:260]
+    myfile = next((pk.where[k][0] for k in pk.league_clubs if pk.clubs[k]['name'] == club), None)
+    check(cfile == myfile, f'CF_ST file {cfile} != the career club\'s file {myfile} at the season end (MC 22/11: the season '
+                           f'end captures every league - CF must be the career club\'s own, gp_cap\'s first table)', errs)
     if magic == 0x4643 and cfile != lfile and cbs[0] == (cseas + 1) & 0xFF and cbs[1] == lfile:
         rank, cfile = cbs[2:258], cbs[1]            # (4.2 rc4 cf_italy: the cup's file in CB_ST - a Serie D career captures
                                                     #  144 first; gplay.c cf_ranks reads the same slot)
@@ -25644,6 +25653,80 @@ def world_cf_italy():
     """4.0.1 (Davide's MESTRE): LIGORNA forced 1st of Serie D girone A (promoted into Serie C), season 2: the COPPA
     ITALIA SERIE C (0x83) has it, by current divisions the real format (C/A 5, C/B 7, C/C 5; byes 5 / 7 / 3)"""
     return cf_follow('italy', 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 'ita', 0x83, 1, (2, 3, 4))
+
+
+def cb_room(tag, dl):
+    """world_cb_room155's run: INTER (file 102: CF 102, CB its twin 144 after the season end), season 1 played on a
+    HOSTTEST_SYMS build of the release data, saved at the season-end menu with ROOMV poked to the budget of TC_CAP 155
+    cached teams minus dl bytes (W8485_ROOMAT). -> (exe, syms, save path or None, message, run tag)"""
+    src = os.environ.get('W2627REL_DATA') or world_data()
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CBROOM_BUILD') or build('world_cb_room155' + ('_' + os.environ['SWOSTEST_TAG'] if os.environ.get(
+        'SWOSTEST_TAG') else ''), env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                       'HOSTTEST_SYMS': '1'})
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_SAVE_END', 'W8485_ROOMAT')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE A,INTER',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='W84R',
+                      W8485_ROOMAT=f"{sy['trailer']['ROOMV'][1]:#x}:{sy['uesum']['NUMSEL'][1]:#x}:155:{dl}")
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84R.CAR')
+    return exe, sy, (car if ok and os.path.exists(car) else None), msg, w84_tag()
+
+
+@scenario
+def world_cb_room155():
+    """4.2 rc4 cf_italy (MC 22/11): the career save at the save floor - 21 B left at TC_CAP 155 with item 'CB'. A season
+    played at INTER, saved at the season-end menu with ROOMV = the budget of 155 cached teams (W8485_ROOMAT): the save
+    carries the engine block with 'CB' (258 B, the twin file 144's places, season + 1), byte-equal to CB_ST before the
+    save and after a reload. Red twin: the same save 22 B shorter (1 B under the floor) writes no engine block - the
+    21 B margin is the real one."""
+    import zlib
+    src = os.environ.get('W2627REL_DATA') or world_data()
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    errs = []
+    cbid = struct.pack('<HH', zlib.crc32(b'CB') & 0xFFFF, 258)
+    exe, sy, car, msg, tag = cb_room('', 0)
+    if not car:
+        return False, f'season: {msg}'
+    log = open(os.path.join(RUNS, tag + '_1', 'session.log'), errors='replace').read()
+    check('ROOMAT numsel' in log, 'no ROOMAT poke before the save', errs)
+    d = open(car, 'rb').read()
+    k = d.find(cbid)
+    check(k >= 0 and d.find(cbid, k + 1) < 0, f"'CB' item in the save at {k} (want exactly one)", errs)
+    if errs:
+        return False, '; '.join(errs)
+    cb = d[k + 4:k + 4 + 258]
+    check(cb[1] == 144 and cb[0] != 0 and any(cb[2:]), f'CB season {cb[0]} file {cb[1]} ({sum(1 for x in cb[2:] if x)} '
+                                                       f'places): want the twin 144 with places', errs)
+    cbo = sy['gplay']['CB_ST'][1]
+    with Session('world_cb_room155_load', exe, {'W84R.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1.replace('W84A', 'W84R') + ' dump:3')
+        mem = bytes(s.result.obj2(cbo, 258))
+    check(mem == cb, f'CB_ST after the reload != the saved item (first diff at '
+                     f'{next((i for i in range(258) if mem[i] != cb[i]), None)})', errs)
+    nr = re.search(r'ROOMAT numsel (\d+) ROOMV (\d+) -> (\d+)', log)
+    _, _, car2, msg2, tag2 = cb_room('_twin', 22)
+    if not car2:
+        errs.append(f'red twin season: {msg2}')
+    else:
+        d2 = open(car2, 'rb').read()
+        check(d2.find(cbid) < 0 and d2.find(struct.pack('<H', 0x3743)) >= 0,
+              f"red twin (22 B short): 'CB' at {d2.find(cbid)} - the engine block was written under the floor", errs)
+    return not errs, '; '.join(errs) or (f'saved at the TC_CAP 155 budget ({nr.group(0) if nr else "?"}): engine block '
+                                         f'written, CB season {cb[0]} file {cb[1]}, byte-equal after the reload; red twin '
+                                         f'22 B short: no engine block, main block kept')
 
 
 @scenario

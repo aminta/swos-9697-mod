@@ -365,12 +365,19 @@ def test_ledger():
     grow = {'SWC1': (0, int(it.group(1)) if it else 0)}           # = its row + 0 dormant / + the shaped size, MC 20/11 rc1)
     errs += [f'{ids[iid]}: saved {ln} B, ledger {rows[ids[iid]]}' for iid, ln in saved.items()
              if iid in ids and ln not in [rows[ids[iid]] + g for g in grow.get(ids[iid], (0,))]]
-    linked = {'FP': 'FP_SAVE' in sy.get('swe', {})}               # (rows of a link-conditional item: FP only when the build
+    log = os.path.join(os.path.dirname(os.path.dirname(EXE)), 'build-it.log')
+    lt = open(log).read() if os.path.exists(log) else ''
+    tw = re.findall(r'cups follow promotions .*twins (\[.*?\])$', lt, re.M)   # (4.2 rc4 cf_italy, MC 22/11: 'CB' only with
+    linked = {'FP': 'FP_SAVE' in sy.get('swe', {})}                             #  a two-file league - cupsf's twins line)
+    if tw:
+        linked['CB'] = tw[-1] != '[]'
+    elif lt and not re.search(r'cups follow promotions', lt):
+        linked['CB'] = False                                                    # (no CF table: no twins, no CB)
+    #                                                             (rows of a link-conditional item: FP only when the build
     errs += [f'{n}: ledger row, not saved' for n in rows          #  links the fixture port - its .bss FP_SAVE; MC 20/11 rc1)
              if engine.item_id(n) not in saved and linked.get(n, True)]
     errs += [f'{n}: saved, but the build does not link it' for n, on in linked.items() if not on and engine.item_id(n) in saved]
-    log = os.path.join(os.path.dirname(os.path.dirname(EXE)), 'build-it.log')
-    room = re.findall(r'big cache room left (-?\d+) B', open(log).read()) if os.path.exists(log) else []
+    room = re.findall(r'big cache room left (-?\d+) B', lt)
     if room and int(room[-1]) < 0:
         errs.append(f'room left {room[-1]} B')
     return not errs, '; '.join(errs) or (f'{len(saved)} items saved = {len(rows)} ledger rows, sizes equal; room left '

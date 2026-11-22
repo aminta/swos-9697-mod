@@ -80,18 +80,32 @@ def dt_bytes(pk, lfile):
     return struct.pack('<HBH', gbase, lfile, len(pairs)) + bytes(levels(pk)) + b''.join(bytes(x) for x in pairs)
 
 
-def table(world):
-    """CF_TAB bytes of a world (gplay.c), or None (no cups to follow)."""
-    cups, dts, twins = [], [], []
+def twins(world):
+    """[(file, file)] of a world's leagues over two team files (4.2 rc4 cf_italy, from the packs' data: S7 Italy 102 /
+    144) - gplay.c cf_cap_c keeps the twin of CF's file in CB; a league over 3+ files or a file in two twins refused
+    (MC 22/11). Empty: no 'CB' item in the build (patch.py, MC 22/11: conditional)."""
+    out = []
     for pk in mkseason.packs():
         if pk.world != world:
             continue
         lfs = list(pk.league_files()) if pk.league else []
-        if len(lfs) > 2:                               # (MC 22/11: CB holds ONE twin - a league over 3+ files is refused)
+        if len(lfs) > 2:
             raise mkseason.PackError(f"{pk.meta['id']}: league over team files {lfs}: cupsf twins hold two (cf_italy CB)")
-        if len(lfs) == 2:                              # (4.2 rc4 cf_italy: a league over two team files - from the pack's
-            twins.append(tuple(lfs))                   #  data, S7 Italy 102 / 144 - gplay.c cf_cap_c keeps the twin of
-                                                       #  CF's file in CB)
+        if len(lfs) == 2:
+            out.append(tuple(lfs))
+    seen = [f for t in out for f in t]
+    if len(seen) != len(set(seen)):
+        raise mkseason.PackError(f'cupsf: a team file in two twins {out} (world {world})')
+    return out
+
+
+def table(world):
+    """CF_TAB bytes of a world (gplay.c), or None (no cups to follow)."""
+    cups, dts = [], []
+    tw = twins(world)
+    for pk in mkseason.packs():
+        if pk.world != world:
+            continue
         for f in (pk.league_files() if pk.league else [None]):   # (S7: each league file its own dt)
             cs, lfile = pack_cups(pk, f)
             if not cs:
@@ -99,9 +113,6 @@ def table(world):
             dts.append(dt_bytes(pk, lfile))
             for cid, n, gs in cs:
                 cups.append((cid, n, gs, len(dts) - 1))
-    seen = [f for t in twins for f in t]
-    if len(seen) != len(set(seen)):                    # (every two-file league once; a file in two twins: refused)
-        raise mkseason.PackError(f'cupsf: a team file in two twins {twins} (world {world})')
     if not cups:
         return None
     year = globals()['year'](world) - 1900
@@ -109,8 +120,8 @@ def table(world):
     for cid, n, gs, di in cups:
         out += bytes((cid, n, len(gs), di)) + b''.join(bytes(g) for g in gs)
     out += bytes((len(dts),)) + b''.join(dts)
-    out += bytes((len(twins),)) + b''.join(bytes(t) for t in twins)   # (after the dts: db n, n x (db file, db file))
-    print(f'exe: cups follow promotions (world {world}): {len(cups)} cups, {len(dts)} league files, twins {twins}')
+    out += bytes((len(tw),)) + b''.join(bytes(t) for t in tw)   # (after the dts: db n, n x (db file, db file))
+    print(f'exe: cups follow promotions (world {world}): {len(cups)} cups, {len(dts)} league files, twins {tw}')
     return bytes(out)
 
 

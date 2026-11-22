@@ -3102,6 +3102,18 @@ def s7_flags():
 
 
 GPLX_ROOTS = ['sc_rule']                             # (gplx.c's entry points gplay.c calls)
+def cf_twins():
+    """4.2 rc4 cf_italy (MC 22/11): the twins this build's CF_TAB carries, as the link below decides it (a pack with cup_d,
+    the 2026+ world's cups): [] = no CF table or no two-file league -> no 'CB' item (patch.py)."""
+    import cupsf
+    import mkseason
+    cds = mkseason.cupd_tables() if mkseason.worlds() else []
+    cfw = [w for w in cupsf.worlds() if cupsf.year(w) >= 2026] if cds else []
+    if not cfw or cupsf.table(cfw[-1]) is None:
+        return []
+    return cupsf.twins(cfw[-1])
+
+
 GPLX_EXT = ('GP_SEAS', 'SC_ST', 'CF_ST', 'CB_ST', 'WN_ST', 'wn_find')   # (gplay.c's symbols gplx.c reads)
 
 

@@ -329,7 +329,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('WN', gp_mod.WN_SIZE)         # 4.0.1 the WINNERS page's last season (WN_ST, gp_season)
         engine.save_item('F1', gp_mod.F1_SIZE, world_only=True)   # 4.0.5 the FASE 1 page's phase-1 table (F1_ST)
         engine.save_item('CF', gp_mod.CF_SIZE)         # 4.0.1 cupsf: the clubs' last-season places (CF_ST, cf_cap_c)
-        engine.save_item('CB', gp_mod.CB_SIZE)         # 4.2 rc4 cf_italy: a second league file's places (CB_ST; S7 Italy 102 / 144)
+        if gp_mod.cf_twins():                          # 4.2 rc4 cf_italy: a second league file's places (CB_ST; S7 Italy
+            engine.save_item('CB', gp_mod.CB_SIZE)     # 102 / 144) - only with a two-file league (MC 22/11: conditional)
         engine.save_item('CN', gp_mod.CN_SIZE, world_only=True)   # 4.0.5 the career club's last-season division name
         if mkseason.second_table()[0]:
             engine.save_item('BQ', gp_mod.BQ_SIZE, world_only=True)   # 4.0.6 may each B team go up (SEC_BQ, zones)
@@ -704,7 +705,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.ITEM_AT['WN'] = gplay.LABELS['WN_ST']    # (the WINNERS page's last season)
         engine.ITEM_AT['F1'] = gplay.LABELS['F1_ST']    # (4.0.5: the FASE 1 page)
         engine.ITEM_AT['CF'] = gplay.LABELS['CF_ST']    # (cupsf: the clubs' last-season places)
-        engine.ITEM_AT['CB'] = gplay.LABELS['CB_ST']    # (rc4 cf_italy: the second file's places)
+        if 'CB' in engine.SAVE_ITEMS:
+            engine.ITEM_AT['CB'] = gplay.LABELS['CB_ST']    # (rc4 cf_italy: the second file's places)
         if 'BQ' in engine.SAVE_ITEMS:
             engine.ITEM_AT['BQ'] = gplay.LABELS['SEC_BQ']
         engine.ITEM_AT['CN'] = gplay.LABELS['CN_ST']    # (4.0.5: winners.py's last-season fallback title)

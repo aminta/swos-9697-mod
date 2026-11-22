@@ -35291,6 +35291,10 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
         nm_ = [struct.unpack('<i', bytes.fromhex(ln.split()[2]))[0] for ln in lines1 + lines2   # moved them is season 1's session: season 2's starts at 0)
                if nmk and ln.startswith(f'HEX {nmk} ')]
         world_gplay_cupd.nri = max(nm_) if nm_ else None
+        lgk = world_gplay_cupd.lg_key                           # (MC 22/11: the down-crossers = half of S7_LOG.ncross at the season end that applied the swap, not a literal 9)
+        ends = [bytes.fromhex(ln.split()[2]) for ln in lines1 + lines2 if lgk and ln.startswith(f'HEX {lgk} ')]
+        ends = [b for b in ends if b[0] == 1]                   # (status 1 = a season end applied)
+        world_gplay_cupd.down = ends[-1][3] // 2 if ends else None
         world_gplay_cupd.exe, world_gplay_cupd.lines2, world_gplay_cupd.b0 = exe, lines2, b0   # (world_cdkn reads them)
         np_, nfc, nfp = b0[606], b0[607], b0[608]
         ent = b0[348:604]
@@ -35331,8 +35335,9 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
               f'season 2: the preliminary\'s old clubs not the lowest placed ({max(p_old)} > {min(d_in)})', errs)
         nri_ = world_gplay_cupd.nri                              # (RI_NMOVES, logged by a HOSTTEST_SYMS build: world_gplay_cupd2; None = not logged)
         if nri_ is not None:                                     # S7 data, MC 21/11: every arrival = 9 down-crossers + the pool moves (+ cd_season's own)
-            check(len(arr) == 9 + nri_ + nfc + nfp, f'season 2: {len(arr)} arrivals, want 9 down-crossers + {nri_} pool moves + {nfc} + {nfp} = '
-                  f'{9 + nri_ + nfc + nfp}', errs)
+            dn_ = world_gplay_cupd.down if world_gplay_cupd.down is not None else 9
+            check(len(arr) == dn_ + nri_ + nfc + nfp, f'season 2: {len(arr)} arrivals, want {dn_} down-crossers + {nri_} pool moves + {nfc} + {nfp} = '
+                  f'{dn_ + nri_ + nfc + nfp}', errs)
         s7_swap = nfc == 0 and nfp == 0 and len(arr) >= 9       # (S7 data: Serie C -> D crosses files by the N7 swap AFTER cd_season, which
         check((nfc > 0 and nfp > 0 or s7_swap) and arr and arr <= pre,    # so counts no arrival of its own: the arrivals are the 9+ down-crossers
               f'season 2: arrivals from C {nfc}, from the pool {nfp}, not in the preliminary {sorted(arr - pre)}', errs)   # + pool moves, all in the preliminary
@@ -37061,7 +37066,7 @@ def world_cdkn_fall():
                                          f'today\'s draw ({info["np"]} preliminary ties)')
 
 
-world_gplay_cupd.nm_key, world_gplay_cupd.nri = None, None   # (set by world_gplay_cupd2's hexf; other callers log none)
+world_gplay_cupd.nm_key, world_gplay_cupd.lg_key, world_gplay_cupd.nri, world_gplay_cupd.down = None, None, None, None   # (set by world_gplay_cupd2's hexf; other callers log none)
 
 
 @scenario
@@ -37074,8 +37079,9 @@ def world_gplay_cupd2():
         if 'RI_NMOVES' not in js:
             return ''
         world_gplay_cupd.nm_key = f"o{js['RI_NMOVES'][0]}/{js['RI_NMOVES'][1]:x}"
-        return f',{world_gplay_cupd.nm_key}:4'
-    world_gplay_cupd.nm_key, world_gplay_cupd.nri = None, None
+        world_gplay_cupd.lg_key = f"o{js['S7_LOG'][0]}/{js['S7_LOG'][1]:x}"      # (S7_LOG {status, season, nswap, ncross}: ncross / 2 = the down-crossers)
+        return f',{world_gplay_cupd.nm_key}:4,{world_gplay_cupd.lg_key}:16'
+    world_gplay_cupd.nm_key, world_gplay_cupd.lg_key, world_gplay_cupd.nri, world_gplay_cupd.down = None, None, None, None
     return world_gplay_cupd(two=True, extra={'HOSTTEST_SYMS': '1'}, hexf=hexf)
 
 

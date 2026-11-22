@@ -154,7 +154,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
 
 #### Italian version: PAREGGI
-The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
+The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees. It now reads PAREGGI, in the CD and GOG versions.
 
 #### Saved career files
 - A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
@@ -323,7 +323,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
 
 #### Versione italiana: PAREGGI
-Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
+Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
 
 #### File delle carriere salvate
 - Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.

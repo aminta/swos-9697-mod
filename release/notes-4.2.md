@@ -112,7 +112,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 - With the game's own four opponents a summer normally brings 140% of a home league gate: at home against the weaker club (30%) and one of the similar ones (50%), away at the other similar one (20%) and at the stronger one (40%). Much stronger and much weaker clubs only come up when you choose them yourself or when no nearer club exists. The fee always follows what the opponent really is.
 - Financial fair play: the fees count as gate income, like every other gate. Real football does the same: UEFA counts the gate receipts of all of a club's matches as relevant income (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a).
-- Friendlies give no league points and count for no table or cup. The season's friendlies record (won, drawn, lost) is kept apart from your competitive results.
+- Friendlies give no league points and count for no table or cup; as in the original game, they do count in your management record's match totals.
 - **Choosing the opponents yourself:**
 - Career: at the start of every season, before the chairman's note, the page PRESEASON FRIENDLIES shows the four summer friendlies the game has picked for you. Each row has the venue (H home, A away), the opponent, whether that club is STRONGER, EVEN or WEAKER than yours (the word and the colour of its box) and a figure from 1 to 5. CONTINUE accepts the four as they are: if you touch nothing, the game's choice stands.
 - A friendly is just a friendly: its match screens and your calendar show "FRIENDLY" alone (AMICHEVOLE, AMICAL, TESTSPIEL in the other languages), no longer "FRIENDLY FINAL".
@@ -281,7 +281,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 - Con le quattro avversarie scelte dal gioco un'estate porta di norma il 140% di un incasso di campionato in casa: in casa contro la più debole (30%) e una delle simili (50%), in trasferta dall'altra simile (20%) e dalla più forte (40%). Le squadre molto più forti e molto più deboli arrivano solo se le scegli tu o se non ce n'è una più vicina. La cifra segue sempre quello che l'avversaria è davvero.
 - Fair play finanziario: questi soldi contano come incassi da stadio, come ogni altro incasso. Nel calcio vero è lo stesso: la UEFA conta tra i ricavi rilevanti gli incassi da stadio di tutte le partite di un club (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a).
-- Le amichevoli non danno punti e non contano per nessuna classifica o coppa. Il bilancio delle amichevoli della stagione (vinte, pareggiate, perse) è tenuto a parte dai risultati ufficiali.
+- Le amichevoli non danno punti e non contano per nessuna classifica o coppa; come nel gioco originale, contano nei totali partite del registro gestione.
 - **Scegliere tu le avversarie:**
 - Carriera: all'inizio di ogni stagione, prima della nota del presidente, la pagina AMICHEVOLI ESTIVE mostra le quattro amichevoli estive scelte dal gioco. Ogni riga ha la sede (C casa, F fuori), l'avversaria, se quella squadra è SUPERIORE, PARI o INFERIORE alla tua (la parola e il colore del riquadro) e una cifra da 1 a 5. CONTINUA accetta le quattro così come sono: se non tocchi nulla, vale la scelta del gioco.
 - Un'amichevole è solo un'amichevole: le schermate della partita e il tuo calendario mostrano solo "AMICHEVOLE" (FRIENDLY, AMICAL, TESTSPIEL nelle altre lingue), non più "AMICHEVOLE FINALE".

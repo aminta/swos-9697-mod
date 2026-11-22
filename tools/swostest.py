@@ -26790,6 +26790,8 @@ FR_NAMES = {   # TODO(engine): (match-screen title word, calendar label) per lan
     'it': ('AMICHEVOLE', 'AMICHEVOLE'), 'en': ('FRIENDLY', 'FRIENDLY'),
     'fr': ('AMICAL', 'AMICAL'), 'de': ('TESTSPIEL', 'TESTSPIEL')}
 FR_RECORD = {  # TODO(engine): the record line's label per language ('<label>: W-D-L' on REGISTRO GESTIONE)
+    # (not in 4.2: no engine code writes this line - frtext.REC_NAME / REC_LINE have no consumer; MC 22/11 dropped the
+    #  rc4 record-line gate, backlog-43 engine row "REGISTRO GESTIONE friendlies line (FR_RECORD TODO in swostest)")
     'it': 'PRECAMPIONATO', 'en': 'PRESEASON', 'fr': 'PRESAISON', 'de': 'VORBEREITUNG'}
 FR_RECORD_PX = 298            # TODO(engine): the record line's bar (ctview's PXMAX until the page's own width is given)
 FR_TICK = '1234'              # CAREER_TICK of every friendlies scenario (FR_TICK env overrides): the draw pinned

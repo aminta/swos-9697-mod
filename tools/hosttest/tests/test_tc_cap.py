@@ -3,7 +3,7 @@
   release's build.log (4 CD + 4 GOG + SWOS++) and of the host-test fixture root's logs; the 'FP' flavour (fixture port,
   fpad.SAVE_SIZE) also by arithmetic on top of the release's blocks. Design: TC_CAP = min(SEL_CAP, (SEL_ROOM - main -
   EN) // 684), computed per build by trailer.py (team cache 1a, 03ee3a8+) and logged as `exe: big cache save room: X B
-  left at TC_CAP N teams (main M, EN E)`; it never drops below tcache.TC_FLOOR 159 (TC_FLOOR_FP 155 with 'FP'): the
+  left at TC_CAP N teams (main M, EN E)`; it never drops below tcache.TC_FLOOR 159 (TC_FLOOR_FP 155 with 'FP' or 'CB'): the
   cap only grows across versions (MC 16/11).
 - the game's 6 insert sites (design 1.3's table): in ref/swos.asm by text and in the exes by bytes (`add word
   [g_numSelectedTeams], 1` with its copy-count `mov word [D0], 341` within 0x60 B: before, after for cseg_3283C)."""
@@ -40,7 +40,7 @@ def flavours():
             continue
         for m in TRAILER.finditer(open(f, errors='replace').read()):
             items = [x.strip() for x in (m[3] or '').split(',')]
-            out.setdefault((int(m[1]), int(m[2] or 0), 'FP' in items), []).append(os.path.relpath(f, tc_rel.C))
+            out.setdefault((int(m[1]), int(m[2] or 0), 'FP' in items or 'CB' in items), [])   # (rc4: CB = a release item, floor 155).append(os.path.relpath(f, tc_rel.C))
     return out
 
 

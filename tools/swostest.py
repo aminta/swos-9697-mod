@@ -3514,6 +3514,18 @@ def rec_shot(s):
     return True
 
 
+def roomat_poke(s):
+    """W8485_ROOMAT=rv:ns:tgt:dl (4.2 rc4 cf_italy, MC 22/11, world_cb_room155): before a save's name entry, ROOMV =
+    its value minus (tgt - NUMSEL) records minus dl bytes - the save budget of tgt cached teams (TC_CAP), dl short."""
+    if not os.environ.get('W8485_ROOMAT'):
+        return
+    rv, ns, tgt, dl = (int(x, 0) for x in os.environ['W8485_ROOMAT'].split(':'))
+    n = struct.unpack('<H', s.result.obj2(ns, 2))[0]
+    cur = struct.unpack('<I', s.result.read(s.result.base1 + rv, 4))[0]
+    s.poke(s.result.base1 + rv, struct.pack('<I', cur - (tgt - n) * 684 - dl))
+    s.log.append(f'ROOMAT numsel {n} ROOMV {cur} -> {cur - (tgt - n) * 684 - dl} (as {tgt} cached, -{dl})')
+
+
 def next_season_save(s, name):
     """Season-end menu -> CONTINUA CARRIERA -> (messages) -> new season's career menu -> ESCI -> SALVA CARRIERA -> name.
     Returns the save path or an error string."""
@@ -3590,6 +3602,7 @@ def next_season_save(s, name):
         return err
     if press(s, s.screen(), 'SALVA CARRIERA') is None:
         return f'no SALVA CARRIERA on {s.screen()}'
+    roomat_poke(s)
     s.send(name_entry(name) + ' dump:3')
     path = os.path.join(s.run, 'SWOS', name + '.CAR')
     return path if os.path.exists(path) else f'{name}.CAR not written ({s.result})'
@@ -5120,12 +5133,7 @@ def world8485():
                     press(s, s.screen(), 'CONTINUA')
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'season {season}: no SALVA CARRIERA on {s.screen()}'
-                if os.environ.get('W8485_ROOMAT'):     # 4.2 rc4 cf_italy (MC 22/11, world_cb_room155): ROOMV as with
-                    rv, ns, tgt, dl = (int(x, 0) for x in os.environ['W8485_ROOMAT'].split(':'))   # tgt cached teams
-                    n = struct.unpack('<H', s.result.obj2(ns, 2))[0]                              # (the save budget
-                    cur = struct.unpack('<I', s.result.read(s.result.base1 + rv, 4))[0]          # at TC_CAP), minus
-                    s.poke(s.result.base1 + rv, struct.pack('<I', cur - (tgt - n) * 684 - dl))   # dl bytes (the twin)
-                    s.log.append(f'ROOMAT numsel {n} ROOMV {cur} -> {cur - (tgt - n) * 684 - dl} (as {tgt} cached, -{dl})')
+                roomat_poke(s)
                 s.send(name_entry(nm) + ' dump:3')
                 return True, f'season {season}: saved {os.path.join(s.run, "SWOS", nm + ".CAR")}'
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
@@ -25657,7 +25665,7 @@ def world_cf_italy():
 
 def cb_room(tag, dl):
     """world_cb_room155's run: INTER (file 102: CF 102, CB its twin 144 after the season end), season 1 played on a
-    HOSTTEST_SYMS build of the release data, saved at the season-end menu with ROOMV poked to the budget of TC_CAP 155
+    HOSTTEST_SYMS build of the release data, saved for the next season (after the season end) with ROOMV poked to the budget of TC_CAP 155
     cached teams minus dl bytes (W8485_ROOMAT). -> (exe, syms, save path or None, message, run tag)"""
     src = os.environ.get('W2627REL_DATA') or world_data()
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25667,9 +25675,11 @@ def cb_room(tag, dl):
     sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_SAVE_END', 'W8485_ROOMAT')
+    os.environ.pop('W8485_SAVE_END', None)            # (the next season's save: after the season end's captures - the
+                                                       #  season-end menu's save comes before them, CB still empty)
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE A,INTER',
-                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1', W8485_SAVE_END='W84R',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1',
                       W8485_ROOMAT=f"{sy['trailer']['ROOMV'][1]:#x}:{sy['uesum']['NUMSEL'][1]:#x}:155:{dl}")
     try:
         ok, msg = world8485()
@@ -25679,14 +25689,14 @@ def cb_room(tag, dl):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84R.CAR')
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     return exe, sy, (car if ok and os.path.exists(car) else None), msg, w84_tag()
 
 
 @scenario
 def world_cb_room155():
     """4.2 rc4 cf_italy (MC 22/11): the career save at the save floor - 21 B left at TC_CAP 155 with item 'CB'. A season
-    played at INTER, saved at the season-end menu with ROOMV = the budget of 155 cached teams (W8485_ROOMAT): the save
+    played at INTER, saved for the next season with ROOMV = the budget of 155 cached teams (W8485_ROOMAT): the save
     carries the engine block with 'CB' (258 B, the twin file 144's places, season + 1), byte-equal to CB_ST before the
     save and after a reload. Red twin: the same save 22 B shorter (1 B under the floor) writes no engine block - the
     21 B margin is the real one."""
@@ -25710,9 +25720,9 @@ def world_cb_room155():
     check(cb[1] == 144 and cb[0] != 0 and any(cb[2:]), f'CB season {cb[0]} file {cb[1]} ({sum(1 for x in cb[2:] if x)} '
                                                        f'places): want the twin 144 with places', errs)
     cbo = sy['gplay']['CB_ST'][1]
-    with Session('world_cb_room155_load', exe, {'W84R.CAR': car}, 'dump:2', 300) as s:
+    with Session('world_cb_room155_load', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
         s.wait()
-        s.send(LOAD1.replace('W84A', 'W84R') + ' dump:3')
+        s.send(LOAD1 + ' dump:3')
         mem = bytes(s.result.obj2(cbo, 258))
     check(mem == cb, f'CB_ST after the reload != the saved item (first diff at '
                      f'{next((i for i in range(258) if mem[i] != cb[i]), None)})', errs)

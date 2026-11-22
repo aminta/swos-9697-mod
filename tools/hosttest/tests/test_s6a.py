@@ -132,6 +132,9 @@ CT_READS = {   # S6a (c), MC 15/11: GP_MGR / GP_IN.mgr and split's 'SH' block + 
     # exports more labels; obj1 / obj2 / obj3 counts unchanged, obj4 +1): the same reads, C as listed above.
     ('s7swap', 'RI_HINTN'): (3, 'C'), ('fpmlv', 'FV_TF'): (3, 'C'), ('gkinj', 'SYMS.gk_903'): (1, 'C'),
     ('gplay', 'csyms.cup_rule'): (1, 'C'), ('practice', 'GAME.BOTT_O'): (1, 'C'), ('sreg', 'IMP.s7_imp_walk'): (1, 'C'),
+    # MC / Nazionali 22/11 (4.2 rc4 verdict from the code): the imm32 ADDRESS of CAREERTEAM (mov eax, 0x17256; sub; mov [esi], eax),
+    # never a dereference; the label is only the nearest one before w_loadcopy's .ct loop.
+    ('careerworld', 'sites.nt'): (1, 'W: address immediate only, w_loadcopy .ct pointer relocation (4.2 rc3 MC 21/11), no load of CAREERTEAM'),
 }
 
 

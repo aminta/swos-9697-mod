@@ -343,9 +343,7 @@ def test_ledger():
     uc.mem_write(_guard(rd, save), b'\0' * 4)                        # (CG_GUARDP: no contest view open)
     for pat, val in ((b'\x0f\xb7\x05', b'\0\0'), (b'\x03\x3d', struct.pack('<I', BUF)),
                      (b'\x3b\x05', struct.pack('<I', 0x30000))):
-        uc.mem_write(_disp(rd, save, 0x200, pat), val)   # (rc4: 0x80 -> 0x200 - each engine before_save callback
-                                                         #  (;EN_BEFORE, 14 B) pushes the NUMSEL / SELBASEV / ROOMV
-                                                         #  reads further: 1335b2c's put `cmp eax, [ROOMV]` past 0x80)
+        uc.mem_write(_disp(rd, save, 0x80, pat), val)
     d1 = _disp(rd, save, 0x200, b'\x81\x05')
     uc.mem_write(d1, b'\0' * 4)
     st_save = tr.B4 + sy['swe']['swe_st_save'][1]                    # (a World 2026-27 career: the world-only

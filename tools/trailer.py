@@ -525,7 +525,7 @@ def patch(p, cave, items, tails=False):
     if careerworld.BSS[0] is not None:            # rule: memory cap SEL_CAP, save budget TC_CAP; 159, 155 with 'FP')
         tc_cap = min(careerworld.SEL_CAP, (careerworld.SEL_ROOM - block - en_block) // TEAM_SIZE)
         import tcache                             # (MC 16/11: a FIXED floor - the cap only ever grows across versions, so a
-        floor = tcache.TC_FLOOR_FP if any(e[0] == 'FP' for e in en) else tcache.TC_FLOOR   # career saved at the floor by
+        floor = tcache.TC_FLOOR_FP if any(e[0] in ('FP', 'CB') for e in en) else tcache.TC_FLOOR   # career saved at the floor by
         assert tc_cap >= floor, (f'TC_CAP {tc_cap} < TC_FLOOR {floor}: a trailer item grew past the big cache\'s save '
                                  f'room (main {block} + EN {en_block}); find room elsewhere (CONVENTIONS 26)')
         room = careerworld.SEL_ROOM - tc_cap * TEAM_SIZE - block - en_block

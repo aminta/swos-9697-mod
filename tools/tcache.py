@@ -48,7 +48,9 @@ TABLE = bound.Table('tcache', ENTRIES)  # (4.2 x3all, MC 16/11: the shared bound
 REFS = TABLE.refs                       # [(obj, off, entry)]: callers' dwords, bound at patch() (or at once after it)
 PLACED = TABLE.placed                   # entry -> (3, off) once patch() ran
 TC_FLOOR, TC_FLOOR_FP = 159, 155       # the big cache's save budget may never drop below these (trailer.py asserts it; 'FP'
-                                        # builds: the fixture port's item); a later exe must load what an earlier one saved
+                                        # builds: the fixture port's item; 4.2 rc4, MC 22/11: 'CB' too - the release items' floor
+                                        # is 155, measured 21 B left; h3s7r test shapes carry CB without FP); a later exe must
+                                        # load what an earlier one saved
 RESERVE = {}                            # world -> records kept for its late mandatory installs (builders fill it)
 MSG = 'TEAM CACHE FULL (%03d) - PLEASE REPORT'
 LABELS = {}

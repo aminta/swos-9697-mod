@@ -192,7 +192,8 @@ def test_intworld_slot4():
 
 def test_intworld_red_twins():
     """R4: the probes fail on mutants - int4_step's D0 = 2 (the 4.1 build as slot 2), INT_OWN all 1 (no gate)"""
-    import test_intworld as me
+    me = globals()                                 # (the X the probes call: run.py's module namespace, not a
+    #                                                  second `import test_intworld` - its X never reached them)
     x = X()
     d0 = struct.pack('<I', x.lin('D0'))
     at = x.lin('int4_step')
@@ -200,20 +201,20 @@ def test_intworld_red_twins():
     k = code.find(b'\x66\xc7\x05' + d0 + b'\x04\x00')
     assert k > 0, 'int4_step: mov word [D0], 4 not found'
     caught = []
-    orig_x = me.X
+    orig_x = me['X']
 
     def mutant(fn, patch):
         def mk():
             y = orig_x()
             patch(y)
             return y
-        me.X = mk
+        me['X'] = mk
         try:
             fn()
         except AssertionError:
             caught.append(fn.__name__)
         finally:
-            me.X = orig_x
+            me['X'] = orig_x
 
     mutant(test_intworld_slot4, lambda y: y.e.wr(at + k + 7, b'\x02'))
     own, _ = _tables(x)

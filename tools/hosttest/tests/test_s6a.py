@@ -24,7 +24,10 @@ C = {('gplay', 'gp_notin'), ('gplay', 'cf_a6'), ('gplay', 'cf_mem'), ('gplay', '
      ('gplay', 'gp_sc'), ('gplay', 'gp_scgl'), ('gplay', 'vc5_lay'), ('gplay', '.e8'), ('kitcolors', 'km_mode'),
      ('kitcolors', 'km_keep'), ('kits', 'kk_club'), ('kits', 'kk_rec'), ('quietend', 'qe_call'), ('winners', '.close'),
      ('winners', '.x'),
-     ('gplay', '.free'), ('gplay', '.t')}   # (S6a (A), 4.2: gp_install's slot-4 CAREERTEAM swap and gp_hrest_c - a career
+     ('gplay', '.free'), ('gplay', '.t'),
+     ('nasmcave', None)}   # (rc4, MC 21/11: nasmcave's WGT_STUB - a world-less build's `call W_GT` becomes the pre-S6a
+     # `cmp word [GAMETYPE], 4` = w_gt with world byte 0, ZF = 1 only in a career. Proof: test_wgt_stub (stub = cmp;
+     # world build without W_GT errors; a defined W_GT wins; test_wgt_sites_were_cmp4))   # (S6a (A), 4.2: gp_install's slot-4 CAREERTEAM swap and gp_hrest_c - a career
      # keeps the original path (careerTeam, no flag reset); the other branch is a world SEASON's own (proof:
      # swostest world_season_ko 6/6, world_title_mlt / _ita))
 LAB = re.compile(r'^(\.?[A-Za-z_][\w.]*):')

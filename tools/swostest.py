@@ -17465,15 +17465,19 @@ def season9697_same():
     """S6a (4.3, MC 15/11 gate): a 1996-97 SEASON is unchanged. EUROPA > MALTA, all clubs the computer's, both random
     generators re-pinned at every pause (rng_pin) and currentTick pinned before the start press (the season's
     randomSeed, as career_tick_pin), to FINISCI STAGIONE on this build and on SEA_REF_BUILD (default
-    c/SEAW1/SWOS: 42-seaw, before S6a): every screen's texts the same, in the same order, and the .SEA saved at the end
-    the same size.
+    c/SEAW2/SWOS, see its README: 42-int 2900c58, the rc4 tree, release recipe it exe): every screen's texts the same,
+    in the same order, and the .SEA saved at the end the same size.
+    SEAW2 replaces SEAW1 (Shaved 23/11, Regia GO): SEAW1 was a 4.1.2-based 42-seaw build from before S6a's rebase, so
+    it was stale (103880 B vs 103065 on 42-int). S6a itself is size-neutral (25b61e6 = S6a tip = 103056); the later
+    +9 B is the GM item (GAMEPLAY, 76b1f7f) in notes/engine/save-ledger.md. A new save item = a deliberate new
+    reference (c/SEAWn + README with the sha and why), never a relaxed size check.
     Why the currentTick pin (MC 15/11): the start press runs CareerInitVars, which seeds randomSeed from currentTick
     (the timer word career_seed_sites()[2]); InitNewSeason's cup draws use it. rng_pin re-pins the two generators at
     every pause, but the tick at that press depends on the exe's load time and the host load - two runs of the SAME
     build in parallel drew different cup pairs (SEAW1 vs SEAW1 differed). So s.tick_pin pokes currentTick = 0x1234
     right before the start press (sea_start calls it), on both builds: the draw is then the same, and any screen
     that differs is the build's change. Without the pin this scenario is not deterministic: never drop it."""
-    ref = os.environ.get('SEA_REF_BUILD') or os.path.join(MAIN, 'c', 'SEAW1', 'SWOS')
+    ref = os.environ.get('SEA_REF_BUILD') or os.path.join(MAIN, 'c', 'SEAW2', 'SWOS')
     if not os.path.isdir(ref):
         return True, f'SKIP: no reference build {ref}'
     out = {}

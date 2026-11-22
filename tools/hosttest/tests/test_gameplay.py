@@ -1,11 +1,11 @@
 """4.2 GAMEPLAY page (host side): the row table, the strings in 4 languages (font-safe: gameplay.py's own guard runs on import),
 the GM item's constants; the RUOLI row and GP_RUOLI (the byte every position-traits piece reads) in Unicorn on a built exe
-(HT_GAMEPLAY_EXE, else c/HTO4/SWOS/ITALIAN.EXE; a HOSTTEST_SYMS build - SKIP when it has no RUOLI row): the start values, the
+(HT_GAMEPLAY_EXE, else the fixture root's HTO4 (fixroot, mkfixtures.sh); a missing build or one without the RUOLI row FAILs): the start values, the
 four RUOLI x GAMEPLAY combinations through the page row's own path (gm_pg -> gm_sync) and the OPTIONS row's (gm_apply), the
 save bit through a load and a new career (gm_load / gm_new), the parked CPU values untouched by the bit, PREDEFINITI, and the
-page image that gm_fill builds in obj3 against menu_image(); the GM_RUOLI_SI test build (HT_GAMEPLAY_EXE_SI). The default is gameplay.RUOLI_DEFAULT (NO since Davide 16/11): the
+page image that gm_fill builds in obj3 against menu_image(); the GM_RUOLI_SI test build (HT_GAMEPLAY_EXE_SI, else the fixture HTGPSI). The default is gameplay.RUOLI_DEFAULT (NO since Davide 16/11): the
 start values and PREDEFINITI follow it; the save bit is absolute (set = SI), so a save keeps its RUOLI in a build with the other
-default - checked on a second exe built with the other RUOLI_DEFAULT (HT_GAMEPLAY_EXE_ALT, else c/REL42rud0/SWOS/ITALIAN.EXE)."""
+default - checked on a second exe built with the other RUOLI_DEFAULT (HT_GAMEPLAY_EXE_ALT, else the fixture HTGPD0: GM_RUOLI_D0=1)."""
 import json
 import os
 import struct
@@ -16,9 +16,26 @@ sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(os.path.abspath
 import gameplay  # noqa: E402
 
 SIX = ['difficulty', 'dribbling', 'setpieces', 'cpucards', 'cpuinj', 'gkinj']
-EXE = os.environ.get('HT_GAMEPLAY_EXE') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'HTO4', 'SWOS', 'ITALIAN.EXE')
-ALT = os.environ.get('HT_GAMEPLAY_EXE_ALT') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'REL42rud0', 'SWOS', 'ITALIAN.EXE')
-SI_EXE = os.environ.get('HT_GAMEPLAY_EXE_SI') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'REL42rusi', 'SWOS', 'ITALIAN.EXE')
+import fixroot  # noqa: E402
+
+
+def _exe(env, fixture):
+    """the exe a test reads: env (an explicit choice), else the fixture root's (MC 22/11: no fixed c/<dir> default)"""
+    return os.environ.get(env) or fixroot.fx(fixture, 'SWOS', 'ITALIAN.EXE')
+
+
+def EXE():
+    return _exe('HT_GAMEPLAY_EXE', 'HTO4')
+
+
+def ALT():
+    return _exe('HT_GAMEPLAY_EXE_ALT', 'HTGPD0')
+
+
+def SI_EXE():
+    return _exe('HT_GAMEPLAY_EXE_SI', 'HTGPSI')
+
+
 D = gameplay.RUOLI_DEFAULT                                 # (0 SI / 1 NO)
 B1, B2, B3, B4 = 0x100000, 0x400000, 0x1800000, 0x2000000
 STACK, RET, MEM = 0x3F0000, 0x3E0000, 0x3000000
@@ -75,7 +92,7 @@ class _M:
     def __init__(self, exe=None):
         from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
         from emu import relocate
-        exe = exe or EXE
+        exe = exe or EXE()
         self.syms = json.load(open(os.path.splitext(exe)[0] + '.syms.json'))
         i1, i2, le = relocate(exe, B1, B2, base3=B3, base4=B4)
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
@@ -118,12 +135,14 @@ class _M:
 
 
 def _machine(exe=None):
-    exe = exe or EXE
+    exe = exe or EXE()
     if not os.path.exists(exe) or not os.path.exists(os.path.splitext(exe)[0] + '.syms.json'):
-        return None, f'SKIP: no HOSTTEST_SYMS build at {exe}'
+        raise RuntimeError(f'test_gameplay: no HOSTTEST_SYMS build at {exe} (run tools/hosttest/mkfixtures.sh)')
     m = _M(exe)
     if 'GP_RUOLI' not in m.g:
-        return None, f'SKIP: {exe} has no RUOLI row (built before it, or GM_NOROLES)'
+        if os.environ.get('GM_NOROLES'):
+            return None, f'SKIP: GM_NOROLES'
+        raise RuntimeError(f'test_gameplay: {exe} has no RUOLI row (built before it, or GM_NOROLES): rebuild the fixtures')
     return m, ''
 
 
@@ -283,12 +302,12 @@ def test_save_keeps_roles_across_a_default_change():
     m, why = _machine()
     if not m:
         return True, why
-    a, why = _machine(ALT)
+    a, why = _machine(ALT())
     if not a:
         return True, why
     s0 = a.state()
     if (s0['r'], s0['gp'], s0['bit'], s0['shbit']) != (1 - D, D, D, D):
-        return True, f'SKIP: {ALT} is not a RUOLI_DEFAULT = {1 - D} build (start {s0})'
+        return False, f'{ALT()} is not a RUOLI_DEFAULT = {1 - D} build (start {s0}): rebuild the fixtures'
     out = []
     for r in (1, 0):
         m = _M()
@@ -296,14 +315,14 @@ def test_save_keeps_roles_across_a_default_change():
         m.call('gm_sync', ebp=m.band)
         item = m.rd(m.band + gameplay.GM_W_OFF, 5)
         assert item[2] >> 7 == 1 - r, item.hex()
-        for exe in (ALT, EXE):
+        for exe in (ALT(), EXE()):
             x = _M(exe)
             x.wr(x.band + gameplay.GM_W_OFF, item)
             x.call('gm_load')
             s = x.state()
             assert s['r'] == r and s['gp'] == 1 - r and s['bit'] == 1 - r, (exe, r, s)
         out.append(f'saved {"NO" if r else "SI"} (item {item.hex()}) -> {"NO" if r else "SI"} under default {"SI" if D else "NO"} and under default {"NO" if D else "SI"}')
-    x = _M(ALT)                                            # (and ALT's first new career = ITS default)
+    x = _M(ALT())                                          # (and ALT's first new career = ITS default)
     x.call('gm_new')
     assert x.state() == s0, x.state()
     return True, '; '.join(out)
@@ -317,12 +336,12 @@ def test_ruoli_si_test_build():
     m, why = _machine()
     if not m:
         return True, why
-    x, why = _machine(SI_EXE)
+    x, why = _machine(SI_EXE())
     if not x:
         return True, why
     s0 = x.state()
     if s0 != dict(w=0, r=0, gp=1, bit=1, shbit=1, u0=0):
-        return (True, f'SKIP: {SI_EXE} is not a GM_RUOLI_SI build (start {s0})') if D else (False, f'start {s0}')
+        return False, f'{SI_EXE()} is not a GM_RUOLI_SI build (start {s0}): rebuild the fixtures'
     import swreg
     n = swreg.GAMEPLAY_END - swreg.GAMEPLAY_AT
     a, b = m.rd(m.band, n), x.rd(x.band, n)
@@ -334,7 +353,7 @@ def test_ruoli_si_test_build():
     _reset(x)
     s = x.state()
     assert (s['r'], s['gp'], s['bit']) == (D, 1 - D, 1 - D), s
-    x = _M(SI_EXE)
+    x = _M(SI_EXE())
     x.wr(x.band + o.GM_W_OFF, bytes(5))
     x.call('gm_load')
     s = x.state()

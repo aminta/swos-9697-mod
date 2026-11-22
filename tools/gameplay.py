@@ -104,11 +104,13 @@ def on():
 #      The page is built in the band from a byte image (the packed menu, its pointers zero) + a fill table at each opening.
 GM_W_OFF, GM_U_OFF, GM_SH_OFF, GM3_OFF = 0x12, 0x14, 0x1A, 0x1F   # the data's offsets in the band (asserted at the build; the harness reads them)
 GM_R_OFF, GP_RUOLI_OFF = 0x17, 0x19     # RUOLI: the row's word (0 SI / 1 NO) and THE byte the traits pieces read (1 = traits on)
-RUOLI_DEFAULT = 1                       # THE default of the row (0 SI / 1 NO; Davide 16/11: NO, the traits are switched on by the player):
+RUOLI_DEFAULT = 0 if os.environ.get('GM_RUOLI_D0') else 1   # THE default of the row (0 SI / 1 NO; Davide 16/11: NO, the traits are switched on by the player):
                                         # the program's start (GM_R, GP_RUOLI = 1 - it, the item's / session copy's bit) and PREDEFINITI.
                                         # NOT the saves: their bit is absolute (MC 16/11: set = SI, clear = NO in every version, so a
                                         # change of this constant never flips a career; a save without the bit / the item = NO).
 assert RUOLI_DEFAULT in (0, 1)
+# (GM_RUOLI_D0=1: a TEST build switch, modver TEST_VARS, cleared by buildrel.sh - the exe with the OTHER default, test_gameplay's
+#  ALT fixture HTGPD0 (mkfixtures.sh), that proves the saved bit absolute; unset = 1, the release value)
 RUOLI_START = 0 if os.environ.get('GM_RUOLI_SI') else RUOLI_DEFAULT    # GM_RUOLI_SI=1 (a TEST build switch, modver TEST_VARS: 'MOD .. TEST',
                                         # cleared by buildrel.sh): the program STARTS with RUOLI SI (GM_R 0, GP_RUOLI 1, the item's /
                                         # session copy's bit set, so the first new career keeps it) - for the traits pieces' gates.

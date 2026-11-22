@@ -43,6 +43,20 @@ if [ -e $FX/MANIFEST.json ]; then echo "fixtures for $SHA exist: $FX"; else
   # HTTC1: test_tc1b / test_tcache - the release recipe + HOSTTEST_SYMS, a big world: careerworld's tails, TC_LOADERR
   echo "FX/HTW: $(md5 -q $P/SWOS/ITALIAN.EXE)  $(tail -1 $P/build-it.log)"
 
+  # 1a. test_gameplay's two GAMEPLAY test builds (MC 22/11, were c/REL42rusi / c/REL42rud0): HTGPSI = the release recipe +
+  #     GM_RUOLI_SI=1 (starts with RUOLI SI), HTGPD0 = + GM_RUOLI_D0=1 (RUOLI_DEFAULT 0: the saved bit's absolute check)
+  for d in HTGPSI HTGPD0; do
+    N=$T/$d; mkdir -p $N/SWOS/DATA
+    rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $N/SWOS/
+    cp -p orig/DATA/* $N/SWOS/DATA/
+    F=(GM_RUOLI_SI=1); [ $d = HTGPD0 ] && F=(GM_RUOLI_D0=1)
+    env $F python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $N/SWOS/ITALIAN.EXE it $N/SWOS/DATA \
+      > $N/build-it.log 2>&1 || { tail -20 $N/build-it.log; exit 1; }
+    test -s $N/SWOS/ITALIAN.syms.json
+    echo "$SHA, data ${W:t}, HOSTTEST_SYMS=1 ${F[*]} (tools/hosttest/mkfixtures.sh $(date +%F))" >> $N/build-it.log
+    echo "FX/$d: $(md5 -q $N/SWOS/ITALIAN.EXE)  $(tail -1 $N/build-it.log)"
+  done
+
   # 1b. test_sreg's pair: HTn7rf (SREG_FORCE=1) and HTn7rd (dormant), the release recipe on world5tm-h2 (its own SEASON_PACKS)
   W2=$M/internal/world2526/world5tm-h2
   P2="ddr-1988-89,italia-1947-48,world-cup-1934,$EU,$(grep ' file ' $W2.txt | awk -v w=$W2 '{print w"/"tolower($1)}' | paste -sd, -)"
@@ -97,7 +111,7 @@ E
   mv $T $FX; trap - EXIT
 fi
 if [ -n "${MKFIX_LEGACY:-}" ]; then
-  for d in HTW HTO4 HTOMM HTPC2 HTMC HTTC1 HTn7rf HTn7rd HTRD1 HTSF3 S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
+  for d in HTW HTO4 HTOMM HTPC2 HTMC HTTC1 HTGPSI HTGPD0 HTn7rf HTn7rd HTRD1 HTSF3 S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
 fi
 echo "export HOSTTEST_FIXROOT=$FX"
 

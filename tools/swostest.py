@@ -7163,11 +7163,12 @@ def w84_cache():
     """3.3.3: the 1984-85 world's team cache. W84E_TEAM254.CAR (Liverpool 1984-85, season end: league 22 + FA Cup 64
     + UEFA Cup 64 = 124 cached teams; 3.3.2 exits to DOS with data/team.254) -> CONTINUA CARRIERA -> the next season
     saved in the big cache (more than 100 records, BIGC); that save reloaded and saved twice: equal, BIGC kept; an old
-    save (W84A.CAR, 3.0) reloaded and saved twice: equal, no BIGC (the game's cache)"""
+    save (W84A.CAR, 3.0) reloaded and saved twice: equal; 4.2 (MC 21/11): its re-save carries BIGC too (every 4.2 career runs on the big cache)
+    but in the CANONICAL layout: selTeamsPtr = OLDSEL, careerTeam refs = careerTeam - OLDSEL, the source's record count"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
     b = builds()['it']
-    errs, info = [], []
+    errs, info, sels = [], [], {}
     car = os.path.join(WORK, 'saves', 'W84E_TEAM254.CAR')     # (repro by the world 2025-26 sessions)
     with Session('w84_cache', b, {'W84E.CAR': car}, 'dump:2', 300) as s:
         s.wait()
@@ -7180,7 +7181,7 @@ def w84_cache():
     mark = struct.pack('<I', careerworld.BIGC) in d[:CAR_FIXED]
     check(n > 100 and mark, f'next season: {n} records, BIGC {mark}', errs)
     info.append(f'next season {n} records')
-    for tag, src, big in (('new', path, True), ('old', os.path.join(WORK, 'saves', 'W84A.CAR'), False)):
+    for tag, src, big in (('new', path, True), ('old', os.path.join(WORK, 'saves', 'W84A.CAR'), True)):
         err, x1, x2 = two_saves('w84_cache_' + tag, b, src, 150)
         if err:
             errs.append(f'{tag}: {err}')
@@ -7190,6 +7191,17 @@ def w84_cache():
         n2 = struct.unpack_from('<H', d2, CAR_FIXED)[0]
         check(ndiff(x1, x2) == 0 and m == big, f'{tag}: save 1 vs 2 {ndiff(x1, x2)} bytes, BIGC {m}, {n2} records', errs)
         info.append(f'{tag}: {n2} records, BIGC {m}, vs source {ndiff(src, x1)} bytes')
+        # canonical layout (4.2: MC 21/11): selTeamsPtr = this exe's OLDSEL (the same word in both saves), the player's club refs in the 5 competition
+        # buffers (+0xF77E .. +0x16ABC) = careerTeam - OLDSEL = -0x9831 (as many as the source's), the record count = the source's
+        def ct_refs(dd):
+            return sum(1 for i in range(0xF77E, 0x16ABC - 3) if struct.unpack_from('<i', dd, i)[0] == -0x9831)
+        ds = open(src, 'rb').read()
+        sel = struct.unpack_from('<I', d1, 0x1739C)[0]
+        sels[tag] = sel
+        check(ct_refs(d1) > 0 and ct_refs(d1) == ct_refs(ds), f'{tag}: careerTeam refs == careerTeam - OLDSEL: {ct_refs(d1)} (source {ct_refs(ds)})', errs)
+        check(n2 == struct.unpack_from('<H', ds, CAR_FIXED)[0] or tag == 'new', f'{tag}: record count {n2} vs source {struct.unpack_from("<H", ds, CAR_FIXED)[0]}', errs)
+        info.append(f'{tag}: selTeamsPtr {sel:#x}, careerTeam refs {ct_refs(d1)}')
+    check(len(sels) == 2 and sels['new'] == sels['old'], f'selTeamsPtr = OLDSEL in both saves: {sels}', errs)
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 

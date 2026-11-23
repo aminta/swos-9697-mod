@@ -2420,3 +2420,7 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Node patcher test all OK (DATA coverage 0), dirtest ALL OK x4, host 30/30, test_stwins 16 cases PASS (41d8668 worktree).
   Visual tour (Shaved) reviewed: nothing to fix.
 - Kept out of the frozen 4.1.2: 412-zonepos 415362f / 41d8668 (test only), they come with the 4.1.2 -> 42-int merge.
+
+## 4.2 (released 2026-11-23)
+- Release build = 42-int tip (rc6 0cc55b9 + docs): SRC stamp fdb495d5695265cf, data world5tm-h3s7rl3-supc-cap (list md5 2454fa704fb3109782e8eaed6fc0f64b), no RC tag. rc6 gates: host 374/1/3 (3 known, none exe), Node all OK, dirtest ALL OK x4, career_20seasons PASS, friendlies set PASS (MC OK 16a1ad8).
+- Known / next: 4.2.1 = fr_postload friendlies name refresh (MUST), world_fport_sd latent (D6CDC division base), harness fixes to 43-harn; 4.3 = KEEPKIT homonym clash (43-kkhom).

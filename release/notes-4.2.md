@@ -3,8 +3,6 @@
 
 **SWOS 96/97 Mod 4.2**
 
-DRAFT - not final: sections by feature in plain player language; owners add their entries.
-
 ### What's new
 
 #### Serie D complete: all 162 clubs
@@ -171,8 +169,6 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 ## Italiano
 
 **SWOS 96/97 Mod 4.2**
-
-DRAFT - not final: sections by feature in plain player language; owners add their entries.
 
 ### Novità
 

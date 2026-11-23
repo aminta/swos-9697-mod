@@ -157,7 +157,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees. It now reads PAREGGI, in the CD and GOG versions.
 
 #### Saved career files
-- A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
+- A damaged or cut-off career file is now refused: the game goes back to the menu, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
 - A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
 - 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
 
@@ -326,7 +326,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
 
 #### File delle carriere salvate
-- Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
+- Un file di carriera rovinato o troncato ora viene rifiutato: il gioco torna al menu, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
 - Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
 - Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
 

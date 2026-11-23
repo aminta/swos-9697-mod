@@ -118,7 +118,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - A friendly is just a friendly: its match screens and your calendar show "FRIENDLY" alone (AMICHEVOLE, AMICAL, TESTSPIEL in the other languages), no longer "FRIENDLY FINAL".
 - On the page where you choose the opponents, the figure from 1 to 5 next to a club is the same for everybody (which fifth of the world's clubs it is in, 5 = the strongest fifth), while the colour compares that club with yours (stronger, similar or weaker), as the page's legend shows; a club you have picked gets a colour of its own.
 - AUTOMATIC says what the game picks for the rows you leave to it: MIXED (one stronger, two similar, one weaker: the setting you start with), EASY (four weaker clubs), MEDIUM (four similar clubs) or HARD (four stronger clubs). LEFT, RIGHT or FIRE change it. The game remembers your setting for the following seasons.
-- FIRE on an opponent opens the game's club list under the title CHOOSE OPPONENT: any club can be picked for that row, also one of your own country. In the list every club has the colour it would have against your club, with the legend above the list; a grey club cannot be picked (your own club, your B team, a club already in another row). When a choice cannot be accepted the page says why and nothing changes. FIRE on a club you chose gives the row back to the game.
+- FIRE on an opponent opens the game's club list under the title CHOOSE OPPONENT: any club can be picked for that row, also one of your own country. In the list every club has the colour it would have against your club, with the legend above the list; a grey club cannot be picked (your B team, a club already in another row); your own club is not in the list. When a choice cannot be accepted the page says why and nothing changes. FIRE on a club you chose gives the row back to the game.
 - A club you chose is marked by its own colour (CHOSEN in the legend). The clubs you choose last one summer: the next season starts again from the game's four.
 - FIRE on H or A swaps that friendly's venue with the nearest friendly of the other venue, so there are always two at home and two away.
 - The fee of every friendly follows how strong the opponent really is, whoever picked it.
@@ -157,7 +157,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees. It now reads PAREGGI, in the CD and GOG versions.
 
 #### Saved career files
-- A damaged or cut-off career file is now refused: the game goes back to the menu, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
+- A damaged or cut-off career file is now refused: you go back to the main menu and the file is left untouched. Before, a file that was too long was cut without a word.
 - A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
 - 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
 
@@ -287,7 +287,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Un'amichevole è solo un'amichevole: le schermate della partita e il tuo calendario mostrano solo "AMICHEVOLE" (FRIENDLY, AMICAL, TESTSPIEL nelle altre lingue), non più "AMICHEVOLE FINALE".
 - Nella pagina in cui scegli le avversarie il numero da 1 a 5 accanto a una squadra è uguale per tutti (in quale quinto delle squadre del mondo si trova, 5 = il quinto più forte), mentre il colore confronta quella squadra con la tua (più forte, simile o più debole), come spiega la legenda della pagina; una squadra che hai già scelto ha un colore suo.
 - AUTOMATICHE dice che cosa sceglie il gioco per le righe che lasci a lui: MISTE (una più forte, due simili, una più debole: l'impostazione di partenza), FACILI (quattro squadre più deboli), MEDIE (quattro simili) o DIFFICILI (quattro più forti). SINISTRA, DESTRA o FUOCO la cambiano. Il gioco ricorda l'impostazione per le stagioni successive.
-- FUOCO su un'avversaria apre l'elenco delle squadre del gioco con il titolo SCEGLI AVVERSARIA: per quella riga si può prendere qualsiasi squadra, anche del tuo paese. Nell'elenco ogni squadra ha il colore che avrebbe contro la tua, con la legenda sopra l'elenco; una squadra grigia non si può scegliere (la tua squadra, la tua squadra B, una squadra già presente in un'altra riga). Quando una scelta non può essere accettata la pagina dice perché e non cambia nulla. FUOCO su una squadra scelta da te restituisce la riga al gioco.
+- FUOCO su un'avversaria apre l'elenco delle squadre del gioco con il titolo SCEGLI AVVERSARIA: per quella riga si può prendere qualsiasi squadra, anche del tuo paese. Nell'elenco ogni squadra ha il colore che avrebbe contro la tua, con la legenda sopra l'elenco; una squadra grigia non si può scegliere (la tua squadra B, una squadra già presente in un'altra riga); la tua squadra non è nell'elenco. Quando una scelta non può essere accettata la pagina dice perché e non cambia nulla. FUOCO su una squadra scelta da te restituisce la riga al gioco.
 - Una squadra scelta da te ha un colore suo (SCELTA nella legenda). Le squadre che scegli valgono per una sola estate: la stagione dopo si riparte dalle quattro del gioco.
 - FUOCO su C o F scambia la sede di quell'amichevole con l'amichevole più vicina dell'altra sede, quindi restano sempre due in casa e due fuori.
 - L'incasso di ogni amichevole segue la forza reale dell'avversaria, chiunque l'abbia scelta.
@@ -326,7 +326,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
 
 #### File delle carriere salvate
-- Un file di carriera rovinato o troncato ora viene rifiutato: il gioco torna al menu, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
+- Un file di carriera rovinato o troncato ora viene rifiutato: torni al menu principale e il file resta intatto. Prima un file troppo lungo veniva tagliato senza avvisare.
 - Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
 - Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
 

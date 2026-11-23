@@ -3326,6 +3326,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_PORT={int(__import__('fpad').on())}",   # (4.2 fixture port P2: fpad.py)
                                 f"-DGP_FRND={int(__import__('frnd').on())}",   # (4.2 friendlies: frnd.py, the port's hooks)
+                                f"-DGP_FRDRAW_TWIN={int(bool(os.environ.get('FRDRAW_TWIN')))}",   # (rc6: world_friendlies_draw's red twin,
+                                                                                   #  test builds only - release 0)
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",

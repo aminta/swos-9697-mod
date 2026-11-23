@@ -3292,6 +3292,13 @@ u32 gp_draw_c(void) {
                                            draw stands, fpad.c reads the score; result flag 10h keeps bplace's 'better
                                            placed goes through' line off its result) */
 #endif
+#ifndef GP_FRDRAW_TWIN
+#define GP_FRDRAW_TWIN 0                /* (gplay.py: FRDRAW_TWIN=1 = world_friendlies_draw's red twin, the guard off) */
+#endif
+#if GP_FRND && !GP_FRDRAW_TWIN
+    if (k->kind == K_FR) return 0x10;   /* (4.2 rc6, Davide 23/11: a preseason friendly is one match - a draw stands; flag 10h
+                                           keeps the 'PASSA X (MIGL. PIAZZ.)' line off it, as for the port's mini-league) */
+#endif
     return a != NOC && b != NOC && kbetter(k, b, a);
 }
 
